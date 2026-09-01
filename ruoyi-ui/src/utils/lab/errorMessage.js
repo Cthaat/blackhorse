@@ -9,28 +9,23 @@ const STATUS_MESSAGES = {
   500: DEFAULT_MESSAGE
 }
 
-const SAFE_SERVER_MESSAGE_PATTERN = /^\p{Script=Han}[\p{Script=Han}\p{Nd} \u3000，。！？、：；（）·—…％,.!?:;()%+\-]{0,199}$/u
-const INTERNAL_DETAIL_PATTERN = /(?:数据库|异常|堆栈|栈跟踪)/
+const APPROVED_SERVER_MESSAGES = {
+  409: '该设备在所选时段已被预约'
+}
 
-function getSafeServerMessage(error) {
+function getApprovedServerMessage(error) {
+  const status = error?.response?.status
   const message = error?.response?.data?.msg
-  if (typeof message !== 'string') {
+  if (typeof message !== 'string' || !Object.hasOwn(APPROVED_SERVER_MESSAGES, status)) {
     return undefined
   }
 
   const normalizedMessage = message.trim()
-  if (
-    !SAFE_SERVER_MESSAGE_PATTERN.test(normalizedMessage) ||
-    INTERNAL_DETAIL_PATTERN.test(normalizedMessage)
-  ) {
-    return undefined
-  }
-
-  return normalizedMessage
+  return normalizedMessage === APPROVED_SERVER_MESSAGES[status] ? normalizedMessage : undefined
 }
 
 export function resolveLabErrorMessage(error) {
   const status = error?.response?.status
   const fallbackMessage = Object.hasOwn(STATUS_MESSAGES, status) ? STATUS_MESSAGES[status] : DEFAULT_MESSAGE
-  return getSafeServerMessage(error) ?? fallbackMessage
+  return getApprovedServerMessage(error) ?? fallbackMessage
 }
