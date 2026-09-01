@@ -4,11 +4,11 @@
 
 | 项目 | 内容 |
 |---|---|
-| 文档版本 | V1.0 审阅版 |
+| 文档版本 | V1.0 基线版 |
 | 编制日期 | 2026-09-01 |
 | 对应需求 | docs/requirements/lab-management-srs.md |
 | 对应策划 | docs/planning/lab-management-project-charter.md |
-| 文档状态 | 已完成内部自检，待用户书面审核 |
+| 文档状态 | 用户已于2026-09-01书面批准 |
 
 ## 1. 设计结论
 
@@ -105,7 +105,7 @@ Nginx只在发布环境负责静态文件及/api反向代理；本机开发可�
 - src/views/lab：实验室、设备、资格、预约、使用、维修、巡检、隐患和工作台页面；
 - src/components/lab：状态标签、时间段选择、附件和状态历史等复用组件；
 - src/store/modules：用户、字典和消息状态；
-- src/utils：时间、幂等键和下载工具。
+- src/utils：时间、预约申请幂等键和下载工具。
 
 前端只负责交互校验和显示，不能自行决定数据范围或合法状态迁移。
 
@@ -123,11 +123,11 @@ Nginx只在发布环境负责静态文件及/api反向代理；本机开发可�
 | lab_repair_order | repair_no、device_id、source_type、assignee_id、status、result、acceptance |
 | lab_inspection_plan | laboratory_id、frequency_type、interval_value、execute_time、next_run_at、owner_id、deadline_rule、status |
 | lab_inspection_plan_item | plan_id、item_code、content、sort_order、enabled |
-| lab_inspection_task | plan_id、scheduled_at、deadline_at、assignee_id、status、overdue_flag |
+| lab_inspection_task | plan_id、scheduled_at、deadline_at、assignee_id、status、overdue_flag、overdue_set_at、overdue_event_version |
 | lab_inspection_item | task_id、plan_item_id、content_snapshot、result、description、severity |
-| lab_hazard | hazard_no、source_item_id、target_type、target_id、severity、owner_id、deadline、status |
+| lab_hazard | hazard_no、source_item_id、target_type、target_id、severity、owner_id、deadline、status、overdue_flag、overdue_set_at、overdue_event_version |
 | lab_rectification | hazard_id、round_no、submitter_id、description、reviewer_id、review_result |
-| lab_notification | receiver_id、type、title、business_type、business_id、read_at |
+| lab_notification | dedupe_key、receiver_id、type、title、business_type、business_id、delivery_status、attempt_count、next_retry_at、read_at |
 | lab_attachment | business_type、business_id、original_name、stored_name、mime_type、size、storage_key |
 | lab_status_history | object_type、object_id、from_status、to_status、operator_id、reason、trace_id |
 
@@ -208,7 +208,7 @@ PENDING可以批准为APPROVED、驳回为REJECTED、取消为CANCELLED或自动
 
 ### 8.2 设备
 
-AVAILABLE领用后进入IN_USE，正常归还恢复AVAILABLE。故障或异常归还进入FAULT，开始维修进入MAINTENANCE，管理员验收通过且无其他阻断时恢复AVAILABLE。管理员可以按规则停用为DISABLED。
+AVAILABLE领用后进入IN_USE，正常归还恢复AVAILABLE。故障或异常归还进入FAULT，开始维修进入MAINTENANCE，管理员验收通过且无其他阻断时恢复AVAILABLE。管理员启停设备时统一锁定设备并校验无未归还使用、开放维修单和未销号重大隐患；DISABLED恢复AVAILABLE还要求所属实验室已启用。
 
 重大隐患是独立阻断条件，不通过修改设备状态表达，避免隐患销号错误覆盖设备真实故障。
 
@@ -267,9 +267,11 @@ Quartz按计划幂等生成任务 → 安全员逐项检查 → 不合格项生�
 
 - 创建及更新DTO只包含允许由调用者输入的字段，忽略用户ID、状态和审计字段；
 - 查询DTO定义筛选、分页和白名单排序；
-- 命令DTO包含原因、幂等键和必要业务数据；
+- 预约申请使用X-Idempotency-Key请求头并保存24小时；其他命令DTO只包含原因和必要业务数据，通过业务唯一约束或期望状态条件更新处理重复调用；
 - VO使用字符串形式的BIGINT ID和带+08:00偏移的时间；
 - 列表VO不携带大附件和完整状态历史，详情接口按需返回。
+
+OpenAPI和Knife4j仅在非生产配置启用并允许读取文档；“调试”按钮调用真实`/lab/**`接口时必须携带有效JWT。生产配置设置`springdoc.api-docs.enabled=false`和`knife4j.enable=false`，如未来需要开放必须另行经过反向代理鉴权和变更审批。
 
 ### 10.3 响应与错误
 
@@ -336,7 +338,7 @@ V1提供LocalStorageService，将文件保存到配置目录并使用随机文�
 
 ### 13.2 消息
 
-核心业务事务内写状态和状态历史，事务提交后通过Spring事务事件创建站内消息。消息失败不回滚核心状态，并记录可查询错误。V1不引入消息队列。
+核心业务事务内写状态和状态历史，事务提交后通过Spring事务事件创建站内消息。状态通知以真实`history_id`和接收人构造去重键，超期通知以业务对象保存的单调`overdue_event_version`和接收人构造去重键，因此同一对象多轮进入相同状态不会吞掉后续通知。消息失败不回滚核心状态，并记录可查询错误；补偿任务同时重试失败记录，并从状态历史和超期事实对账补建缺失通知。V1不引入消息队列或独立发件箱表。
 
 ## 14. 前端交互设计
 
@@ -356,7 +358,7 @@ V1提供LocalStorageService，将文件保存到配置目录并使用随机文�
 - 状态使用统一字典、颜色和中文含义；
 - 状态命令显示确认对话框及必要原因字段；
 - 冲突、资格和隐患阻断显示后端返回的明确原因；
-- 提交按钮生成幂等键并在请求期间禁用；
+- 预约提交按钮生成幂等键并在网络重试时复用，所有状态命令按钮在请求期间禁用；
 - 375px宽度下学生核心页面可操作，复杂管理表格允许横向滚动；
 - 详情页统一展示状态历史和附件。
 
