@@ -7,7 +7,7 @@ ruoyi:
   # 版权年份
   copyrightYear: 2026
   # 文件路径 示例（ Windows配置D:/ruoyi/uploadPath，Linux配置 /home/ruoyi/uploadPath）
-  profile: D:/ruoyi/uploadPath
+  profile: ${LAB_FILE_ROOT}
   # 获取ip地址开关
   addressEnabled: false
   # 验证码类型 math 数字计算 char 字符验证
@@ -53,6 +53,17 @@ spring:
     basename: i18n/messages
   profiles:
     active: druid
+  # Flyway数据库迁移
+  flyway:
+    enabled: true
+    url: ${LAB_DB_URL}
+    user: ${LAB_DB_USERNAME}
+    password: ${LAB_DB_PASSWORD}
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+    clean-disabled: true
+    validate-on-migrate: true
+    placeholder-replacement: false
   # 文件上传
   servlet:
     multipart:
@@ -75,7 +86,7 @@ spring:
       # 数据库索引
       database: 0
       # 密码
-      password:
+      password: ${LAB_REDIS_PASSWORD}
       # 连接超时时间
       timeout: 10s
       lettuce:
@@ -94,7 +105,7 @@ token:
   # 令牌自定义标识
   header: Authorization
   # 令牌密钥
-  secret: abcdefghijklmnopqrstuvwxyz
+  secret: ${LAB_TOKEN_SECRET}
   # 令牌有效期（默认30分钟）
   expireTime: 30
 

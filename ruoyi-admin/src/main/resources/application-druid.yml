@@ -6,16 +6,16 @@ spring:
         druid:
             # 主库数据源
             master:
-                url: jdbc:mysql://localhost:3306/ry-vue?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8
-                username: root
-                password: password
+                url: ${LAB_DB_URL}
+                username: ${LAB_DB_USERNAME}
+                password: ${LAB_DB_PASSWORD}
             # 从库数据源
             slave:
                 # 从数据源开关/默认关闭
-                enabled: false
-                url: 
-                username: 
-                password: 
+                enabled: ${LAB_DB_SLAVE_ENABLED:false}
+                url: ${LAB_DB_SLAVE_URL:}
+                username: ${LAB_DB_SLAVE_USERNAME:}
+                password: ${LAB_DB_SLAVE_PASSWORD:}
             # 初始连接数
             initialSize: 5
             # 最小连接池数量
@@ -40,18 +40,13 @@ spring:
             testOnBorrow: false
             testOnReturn: false
             webStatFilter: 
-                enabled: true
+                enabled: false
             statViewServlet:
-                enabled: true
-                # 设置白名单，不填则允许所有访问
-                allow:
+                enabled: false
                 url-pattern: /druid/*
-                # 控制台管理用户名和密码
-                login-username: ruoyi
-                login-password: 123456
             filter:
                 stat:
-                    enabled: true
+                    enabled: false
                     # 慢SQL记录
                     log-slow-sql: true
                     slow-sql-millis: 1000
@@ -59,3 +54,23 @@ spring:
                 wall:
                     config:
                         multi-statement-allow: true
+
+---
+spring:
+    config:
+        activate:
+            on-profile: druid-stat
+    datasource:
+        druid:
+            webStatFilter:
+                enabled: true
+            statViewServlet:
+                enabled: true
+                # 监控仅在显式 profile 下启用，账号和密码没有默认值
+                allow: ${LAB_DRUID_STAT_ALLOW:127.0.0.1}
+                url-pattern: /druid/*
+                login-username: ${LAB_DRUID_STAT_USERNAME}
+                login-password: ${LAB_DRUID_STAT_PASSWORD}
+            filter:
+                stat:
+                    enabled: true
