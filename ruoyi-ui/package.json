@@ -59,6 +59,7 @@
     "quill": "2.0.2"
   },
   "resolutions": {
-    "quill": "2.0.2"
+    "quill": "2.0.2",
+    "vite": "6.4.1"
   }
 }
