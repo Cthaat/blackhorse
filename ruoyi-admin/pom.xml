@@ -54,6 +54,26 @@
             <artifactId>ruoyi-generator</artifactId>
         </dependency>
 
+        <!-- 实验室业务模块 -->
+        <dependency>
+            <groupId>com.ruoyi</groupId>
+            <artifactId>ruoyi-lab</artifactId>
+        </dependency>
+
+        <!-- JUnit 5 测试基础设施 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- 架构边界测试 -->
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
     <build>
