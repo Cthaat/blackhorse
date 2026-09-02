@@ -117,6 +117,13 @@
                 <version>${springdoc.version}</version>
             </dependency>
 
+            <!-- Knife4j OpenAPI3 UI（Spring Boot 3 / Jakarta） -->
+            <dependency>
+                <groupId>com.github.xiaoymin</groupId>
+                <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
+                <version>${knife4j.version}</version>
+            </dependency>
+
             <!-- io常用工具类 -->
             <dependency>
                 <groupId>commons-io</groupId>

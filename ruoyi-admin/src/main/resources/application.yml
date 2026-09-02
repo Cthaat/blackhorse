@@ -127,16 +127,18 @@ pagehelper:
 # Springdoc配置
 springdoc:
   api-docs:
+    enabled: true
     path: /v3/api-docs
   swagger-ui:
     enabled: true
     path: /swagger-ui.html
     tags-sorter: alpha
-  group-configs:
-    - group: 'default'
-      display-name: '测试模块'
-      paths-to-match: '/**'
-      packages-to-scan: com.ruoyi.web.controller.tool
+    operations-sorter: alpha
+
+# Knife4j UI 由 starter 的静态资源提供；4.5.0 的可选增强器与 Springdoc 2.9.0
+# 二进制不兼容，因此保持关闭。/doc.html 与 JWT Try-it-out 仍在非生产环境可用。
+knife4j:
+  enable: false
 
 # 防盗链配置
 referer:

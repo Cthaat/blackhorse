@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import javax.sql.DataSource;
 import jakarta.servlet.http.HttpServletRequest;
@@ -50,6 +51,12 @@ import com.ruoyi.framework.security.handle.LogoutSuccessHandlerImpl;
 import com.ruoyi.framework.web.exception.GlobalExceptionHandler;
 import com.ruoyi.framework.web.filter.TraceIdFilter;
 import com.ruoyi.framework.web.service.TokenService;
+import com.ruoyi.common.exception.user.BlackListException;
+import com.ruoyi.common.exception.user.CaptchaException;
+import com.ruoyi.common.exception.user.CaptchaExpireException;
+import com.ruoyi.common.exception.user.UserNotExistsException;
+import com.ruoyi.common.exception.user.UserPasswordNotMatchException;
+import com.ruoyi.common.utils.spring.SpringUtils;
 import com.ruoyi.lab.config.LabTimeConfig;
 import com.ruoyi.lab.exception.LabBusinessException;
 import com.ruoyi.lab.exception.LabErrorCode;
@@ -73,6 +80,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         AuthenticationEntryPointImpl.class,
         LogoutSuccessHandlerImpl.class,
         TraceIdFilter.class,
+        SpringUtils.class,
         GlobalExceptionHandler.class,
         LabExceptionHandler.class,
         LabExceptionContractTest.ContractTestConfiguration.class
@@ -130,6 +138,60 @@ class LabExceptionContractTest
                 .andExpect(jsonPath("$.traceId").value(TRACE_ID))
                 .andExpect(jsonPath("$.timestamp").value(TIMESTAMP))
                 .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void invalidCredentialsUseSafeUnified401Contract() throws Exception
+    {
+        for (String failure : List.of("unknown-user", "wrong-password"))
+        {
+            mockMvc.perform(get("/contract/invalid-credentials/{failure}", failure)
+                            .with(user("student"))
+                            .header(TraceIdFilter.TRACE_ID_HEADER, TRACE_ID))
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(header().string(TraceIdFilter.TRACE_ID_HEADER, TRACE_ID))
+                    .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.code").value(401))
+                    .andExpect(jsonPath("$.errorCode").value("UNAUTHENTICATED"))
+                    .andExpect(jsonPath("$.msg").value("用户不存在/密码错误"))
+                    .andExpect(jsonPath("$.traceId").value(TRACE_ID))
+                    .andExpect(jsonPath("$.timestamp").value(TIMESTAMP))
+                    .andExpect(jsonPath("$.data").doesNotExist());
+        }
+    }
+
+    @Test
+    void captchaFailuresUseUnified400Contract() throws Exception
+    {
+        Map<String, String> failures = Map.of(
+                "invalid", "验证码错误",
+                "expired", "验证码已失效");
+        for (Map.Entry<String, String> failure : failures.entrySet())
+        {
+            mockMvc.perform(get("/contract/captcha/{failure}", failure.getKey())
+                            .with(user("student"))
+                            .header(TraceIdFilter.TRACE_ID_HEADER, TRACE_ID))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value(400))
+                    .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+                    .andExpect(jsonPath("$.msg").value(failure.getValue()))
+                    .andExpect(jsonPath("$.traceId").value(TRACE_ID))
+                    .andExpect(jsonPath("$.timestamp").value(TIMESTAMP));
+        }
+    }
+
+    @Test
+    void blacklistedNetworkUsesSafeUnified403Contract() throws Exception
+    {
+        mockMvc.perform(get("/contract/blacklisted-network")
+                        .with(user("student"))
+                        .header(TraceIdFilter.TRACE_ID_HEADER, TRACE_ID))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(403))
+                .andExpect(jsonPath("$.errorCode").value("ACCESS_DENIED"))
+                .andExpect(jsonPath("$.msg").value("当前网络环境不允许登录"))
+                .andExpect(jsonPath("$.traceId").value(TRACE_ID))
+                .andExpect(jsonPath("$.timestamp").value(TIMESTAMP));
     }
 
     @Test
@@ -425,6 +487,32 @@ class LabExceptionContractTest
         {
             throw new IllegalStateException(
                     "SQL SELECT secret FROM lab_device failed: java.sql.SQLException at com.ruoyi.Secret:42");
+        }
+
+        @GetMapping("/invalid-credentials/{failure}")
+        String invalidCredentials(@PathVariable String failure)
+        {
+            if ("unknown-user".equals(failure))
+            {
+                throw new UserNotExistsException();
+            }
+            throw new UserPasswordNotMatchException();
+        }
+
+        @GetMapping("/captcha/{failure}")
+        String captcha(@PathVariable String failure)
+        {
+            if ("expired".equals(failure))
+            {
+                throw new CaptchaExpireException();
+            }
+            throw new CaptchaException();
+        }
+
+        @GetMapping("/blacklisted-network")
+        String blacklistedNetwork()
+        {
+            throw new BlackListException();
         }
 
         @GetMapping("/trace")

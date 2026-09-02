@@ -21,6 +21,11 @@ import com.ruoyi.common.core.domain.ErrorResponse;
 import com.ruoyi.common.core.text.Convert;
 import com.ruoyi.common.exception.DemoModeException;
 import com.ruoyi.common.exception.ServiceException;
+import com.ruoyi.common.exception.user.BlackListException;
+import com.ruoyi.common.exception.user.CaptchaException;
+import com.ruoyi.common.exception.user.CaptchaExpireException;
+import com.ruoyi.common.exception.user.UserNotExistsException;
+import com.ruoyi.common.exception.user.UserPasswordNotMatchException;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.common.utils.html.EscapeUtil;
 import com.ruoyi.framework.web.filter.TraceIdFilter;
@@ -75,6 +80,43 @@ public class GlobalExceptionHandler
         log.error(e.getMessage(), e);
         Integer code = e.getCode();
         return StringUtils.isNotNull(code) ? AjaxResult.error(code, e.getMessage()) : AjaxResult.error(e.getMessage());
+    }
+
+    /**
+     * 登录凭据无效。用户名不存在与密码错误使用同一响应，避免账号枚举。
+     */
+    @ExceptionHandler({ UserNotExistsException.class, UserPasswordNotMatchException.class })
+    public ResponseEntity<ErrorResponse> handleInvalidCredentials(HttpServletRequest request)
+    {
+        log.warn("请求地址'{}',登录凭据校验失败.", request.getRequestURI());
+        return error(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED", "用户不存在/密码错误", request);
+    }
+
+    /**
+     * 验证码错误。
+     */
+    @ExceptionHandler(CaptchaException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCaptcha(HttpServletRequest request)
+    {
+        return error(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "验证码错误", request);
+    }
+
+    /**
+     * 验证码已失效。
+     */
+    @ExceptionHandler(CaptchaExpireException.class)
+    public ResponseEntity<ErrorResponse> handleExpiredCaptcha(HttpServletRequest request)
+    {
+        return error(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "验证码已失效", request);
+    }
+
+    /**
+     * 当前网络被登录黑名单拒绝。
+     */
+    @ExceptionHandler(BlackListException.class)
+    public ResponseEntity<ErrorResponse> handleBlacklistedNetwork(HttpServletRequest request)
+    {
+        return error(HttpStatus.FORBIDDEN, "ACCESS_DENIED", "当前网络环境不允许登录", request);
     }
 
     /**

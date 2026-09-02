@@ -126,6 +126,108 @@ describe('request response security contract', () => {
     await vi.waitFor(() => expect(globalThis.location.href).toBe('/index'))
   })
 
+  it('shows the approved login failure message for an HTTP 401 without opening the relogin prompt', async () => {
+    const { onRejected } = await loadResponseHandlers()
+    const error = {
+      config: {
+        baseURL: 'https://api.example.test/ruoyi-api',
+        url: 'login?from=expired-session'
+      },
+      response: {
+        status: 401,
+        data: {
+          errorCode: 'UNAUTHENTICATED',
+          msg: '用户不存在/密码错误'
+        }
+      }
+    }
+
+    await expect(onRejected(error)).rejects.toBe(error)
+
+    expect(mocks.confirm).not.toHaveBeenCalled()
+    expect(mocks.message).toHaveBeenCalledWith(expect.objectContaining({
+      message: '用户不存在/密码错误',
+      type: 'error'
+    }))
+  })
+
+  it('handles a legacy 401 login body when Axios config contains an absolute URL and query string', async () => {
+    const { onFulfilled } = await loadResponseHandlers()
+    const response = {
+      config: {
+        baseURL: 'https://api.example.test/ruoyi-api',
+        url: 'https://api.example.test/ruoyi-api/login?captcha=true'
+      },
+      status: 200,
+      data: {
+        code: 401,
+        errorCode: 'UNAUTHENTICATED',
+        msg: '用户不存在/密码错误'
+      },
+      request: {}
+    }
+
+    await expect(onFulfilled(response)).rejects.toBe(response)
+
+    expect(mocks.confirm).not.toHaveBeenCalled()
+    expect(mocks.message).toHaveBeenCalledWith(expect.objectContaining({
+      message: '用户不存在/密码错误',
+      type: 'error'
+    }))
+  })
+
+  it('keeps a protected request 401 on the deduplicated relogin path', async () => {
+    let confirmRelogin
+    mocks.confirm.mockReturnValue(new Promise(resolve => {
+      confirmRelogin = resolve
+    }))
+    const { onRejected } = await loadResponseHandlers()
+    const error = {
+      config: { baseURL: '/ruoyi-api', url: '/lab/security-probe' },
+      response: { status: 401, data: { errorCode: 'UNAUTHENTICATED', msg: '用户不存在/密码错误' } }
+    }
+
+    await expect(onRejected(error)).rejects.toBe(error)
+
+    expect(mocks.confirm).toHaveBeenCalledTimes(1)
+    expect(mocks.message).not.toHaveBeenCalled()
+
+    confirmRelogin()
+    await vi.waitFor(() => expect(mocks.logOut).toHaveBeenCalledTimes(1))
+  })
+
+  it('does not mistake another protected path ending in login for the login endpoint', async () => {
+    const { onRejected } = await loadResponseHandlers()
+    const error = {
+      config: { baseURL: '/ruoyi-api', url: '/lab/login' },
+      response: { status: 401, data: { errorCode: 'UNAUTHENTICATED', msg: '用户不存在/密码错误' } }
+    }
+
+    await expect(onRejected(error)).rejects.toBe(error)
+
+    expect(mocks.confirm).toHaveBeenCalledTimes(1)
+    expect(mocks.message).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    'https://untrusted.example.test/ruoyi-api/login?captcha=true',
+    '//untrusted.example.test/ruoyi-api/login?captcha=true'
+  ])('keeps a cross-origin absolute login-shaped 401 on the relogin path: %s', async (url) => {
+    const { onRejected } = await loadResponseHandlers()
+    const error = {
+      config: {
+        baseURL: 'https://api.example.test/ruoyi-api',
+        url
+      },
+      response: { status: 401, data: { errorCode: 'UNAUTHENTICATED', msg: '用户不存在/密码错误' } }
+    }
+
+    await expect(onRejected(error)).rejects.toBe(error)
+
+    expect(mocks.confirm).toHaveBeenCalledTimes(1)
+    expect(mocks.message).not.toHaveBeenCalled()
+  })
+
   it('starts a new relogin flow after the previous prompt is cancelled', async () => {
     const { onRejected } = await loadResponseHandlers()
     const firstError = { response: { status: 401 } }

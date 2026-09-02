@@ -30,6 +30,18 @@
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
         </dependency>
 
+        <!-- Knife4j OpenAPI3 UI；排除其固定的 Springdoc 2.3.0，统一使用项目管理的 2.9.0 -->
+        <dependency>
+            <groupId>com.github.xiaoymin</groupId>
+            <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springdoc</groupId>
+                    <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
          <!-- Mysql驱动包 -->
         <dependency>
             <groupId>com.mysql</groupId>

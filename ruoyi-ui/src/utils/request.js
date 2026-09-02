@@ -14,6 +14,88 @@ import {
 
 let reloginFlight
 
+const LOGIN_FAILURE_MESSAGE = '用户不存在/密码错误'
+
+function getRequestConfig(value) {
+  if (value === null || typeof value !== 'object') {
+    return undefined
+  }
+  return value.config ?? value.response?.config
+}
+
+function normalizeRequestPath(url) {
+  try {
+    const path = new URL(url, globalThis.location?.origin ?? 'http://localhost').pathname
+    return path.replace(/\/+$/, '') || '/'
+  } catch {
+    return undefined
+  }
+}
+
+function isAbsoluteUrl(url) {
+  return /^([a-z][a-z\d+\-.]*:)?\/\//i.test(url)
+}
+
+function getCurrentOrigin() {
+  return globalThis.location?.origin ?? 'http://localhost'
+}
+
+function resolveOrigin(url) {
+  try {
+    return new URL(url, getCurrentOrigin()).origin
+  } catch {
+    return undefined
+  }
+}
+
+function hasExpectedLoginOrigin(url, baseURL) {
+  const requestOrigin = resolveOrigin(url)
+  if (!requestOrigin) {
+    return false
+  }
+  if (typeof baseURL === 'string' && isAbsoluteUrl(baseURL)) {
+    return requestOrigin === resolveOrigin(baseURL)
+  }
+  return requestOrigin === getCurrentOrigin()
+}
+
+function isLoginRequest(value) {
+  const config = getRequestConfig(value)
+  const url = config?.url
+  if (typeof url !== 'string' || url.trim() === '') {
+    return false
+  }
+  const requestPath = normalizeRequestPath(url)
+  if (!requestPath) {
+    return false
+  }
+  if (isAbsoluteUrl(url) && !hasExpectedLoginOrigin(url, config.baseURL)) {
+    return false
+  }
+  const basePath = typeof config.baseURL === 'string' && config.baseURL.trim() !== ''
+    ? normalizeRequestPath(config.baseURL)
+    : undefined
+  const fullPath = !isAbsoluteUrl(url) && !url.startsWith('/') && basePath
+    ? `${basePath === '/' ? '' : basePath}/${requestPath.replace(/^\/+/, '')}`
+    : requestPath
+  const loginPath = basePath && basePath !== '/' ? `${basePath}/login` : '/login'
+  return fullPath === '/login' || fullPath === loginPath
+}
+
+function resolveLoginFailureMessage(value) {
+  const response = value?.response ?? value
+  const data = response?.data
+  if (data?.errorCode === 'UNAUTHENTICATED' && data?.msg === LOGIN_FAILURE_MESSAGE) {
+    return LOGIN_FAILURE_MESSAGE
+  }
+  return resolveLabErrorMessage(value)
+}
+
+function handleLoginUnauthorized(error) {
+  ElMessage({ message: resolveLoginFailureMessage(error), type: 'error' })
+  return Promise.reject(error)
+}
+
 function ensureRelogin() {
   if (!reloginFlight) {
     const flight = Promise.resolve()
@@ -108,6 +190,9 @@ service.interceptors.response.use(res => {
     const code = res?.data?.code ?? 200
     // 二进制数据则直接返回
     if (isUnauthorizedResponse(res)) {
+      if (isLoginRequest(res)) {
+        return handleLoginUnauthorized(res)
+      }
       return handleUnauthorized(res)
     }
     if (res?.request?.responseType === 'blob' || res?.request?.responseType === 'arraybuffer') {
@@ -128,6 +213,9 @@ service.interceptors.response.use(res => {
   },
   error => {
     if (isUnauthorizedResponse(error)) {
+      if (isLoginRequest(error)) {
+        return handleLoginUnauthorized(error)
+      }
       return handleUnauthorized(error)
     }
     ElMessage({ message: resolveLabErrorMessage(error), type: 'error', duration: 5 * 1000 })
