@@ -95,7 +95,7 @@ function handleClose() {
 
 // 下载模板
 function handleDownloadTemplate() {
-  proxy.download(props.templateAction, {}, `${props.templateFileName}_${new Date().getTime()}.xlsx`)
+  void proxy.download(props.templateAction, {}, `${props.templateFileName}_${new Date().getTime()}.xlsx`).catch(() => undefined)
 }
 
 // 上传进度

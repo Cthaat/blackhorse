@@ -352,9 +352,9 @@ function handleDelete(row) {
 
 /** 导出按钮操作 */
 function handleExport() {
-  proxy.download("system/dict/data/export", {
+  void proxy.download("system/dict/data/export", {
     ...queryParams.value
-  }, `dict_data_${new Date().getTime()}.xlsx`)
+  }, `dict_data_${new Date().getTime()}.xlsx`).catch(() => undefined)
 }
 
 getTypes(route.params && route.params.dictId)

@@ -253,9 +253,9 @@ function handleClean() {
 
 /** 导出按钮操作 */
 function handleExport() {
-  proxy.download("monitor/operlog/export",{
+  void proxy.download("monitor/operlog/export",{
     ...queryParams.value,
-  }, `config_${new Date().getTime()}.xlsx`)
+  }, `config_${new Date().getTime()}.xlsx`).catch(() => undefined)
 }
 
 getList()

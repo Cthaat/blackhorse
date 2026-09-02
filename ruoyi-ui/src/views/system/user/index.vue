@@ -307,9 +307,9 @@ function handleDelete(row) {
 
 /** 导出按钮操作 */
 function handleExport() {
-  proxy.download("system/user/export", {
+  void proxy.download("system/user/export", {
     ...queryParams.value,
-  },`user_${new Date().getTime()}.xlsx`)
+  },`user_${new Date().getTime()}.xlsx`).catch(() => undefined)
 }
 
 /** 用户状态修改  */

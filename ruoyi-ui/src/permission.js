@@ -4,11 +4,11 @@ import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
 import { getToken } from '@/utils/auth'
 import { isHttp, isPathMatch } from '@/utils/validate'
-import { isRelogin } from '@/utils/request'
 import useUserStore from '@/store/modules/user'
 import useLockStore from '@/store/modules/lock'
 import useSettingsStore from '@/store/modules/settings'
 import usePermissionStore from '@/store/modules/permission'
+import { isUnauthorizedResponse, resolveLabErrorMessage } from '@/utils/lab/errorMessage'
 
 NProgress.configure({ showSpinner: false })
 
@@ -39,11 +39,9 @@ router.beforeEach(async (to, from) => {
       return { path: '/' }
     }
     if (useUserStore().roles.length === 0) {
-      isRelogin.show = true
       try {
         // 拉取user_info信息
         await useUserStore().getInfo()
-        isRelogin.show = false
         // 根据roles权限生成可访问的路由
         const accessRoutes = await usePermissionStore().generateRoutes()
         accessRoutes.forEach(route => {
@@ -54,9 +52,10 @@ router.beforeEach(async (to, from) => {
         // 重新导航到目标路由，确保动态路由已注册
         return { ...to, replace: true }
       } catch (err) {
-        await useUserStore().logOut()
-        ElMessage.error(err)
-        return { path: '/' }
+        if (!isUnauthorizedResponse(err)) {
+          ElMessage.error(resolveLabErrorMessage(err))
+        }
+        return false
       }
     }
     return true

@@ -300,9 +300,9 @@ function handleDelete(row) {
 
 /** 导出按钮操作 */
 function handleExport() {
-  proxy.download("system/config/export", {
+  void proxy.download("system/config/export", {
     ...queryParams.value
-  }, `config_${new Date().getTime()}.xlsx`)
+  }, `config_${new Date().getTime()}.xlsx`).catch(() => undefined)
 }
 
 /** 刷新缓存按钮操作 */

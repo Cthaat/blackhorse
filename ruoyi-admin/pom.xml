@@ -77,6 +77,13 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- Spring Security MockMvc test support -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- 架构边界测试 -->
         <dependency>
             <groupId>com.tngtech.archunit</groupId>

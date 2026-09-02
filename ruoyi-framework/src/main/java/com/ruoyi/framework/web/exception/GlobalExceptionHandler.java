@@ -1,8 +1,12 @@
 package com.ruoyi.framework.web.exception;
 
+import java.time.Clock;
+import java.time.OffsetDateTime;
+import java.util.UUID;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.BindException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
@@ -13,11 +17,13 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import com.ruoyi.common.constant.HttpStatus;
 import com.ruoyi.common.core.domain.AjaxResult;
+import com.ruoyi.common.core.domain.ErrorResponse;
 import com.ruoyi.common.core.text.Convert;
 import com.ruoyi.common.exception.DemoModeException;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.common.utils.html.EscapeUtil;
+import com.ruoyi.framework.web.filter.TraceIdFilter;
 
 /**
  * 全局异常处理器
@@ -29,15 +35,23 @@ public class GlobalExceptionHandler
 {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    private final Clock clock;
+
+    public GlobalExceptionHandler(Clock clock)
+    {
+        this.clock = clock;
+    }
+
     /**
      * 权限校验异常
      */
     @ExceptionHandler(AccessDeniedException.class)
-    public AjaxResult handleAccessDeniedException(AccessDeniedException e, HttpServletRequest request)
+    public ResponseEntity<ErrorResponse> handleAccessDeniedException(AccessDeniedException e,
+            HttpServletRequest request)
     {
         String requestURI = request.getRequestURI();
         log.error("请求地址'{}',权限校验失败'{}'", requestURI, e.getMessage());
-        return AjaxResult.error(HttpStatus.FORBIDDEN, "没有权限，请联系管理员授权");
+        return error(HttpStatus.FORBIDDEN, "ACCESS_DENIED", "没有权限访问该资源", request);
     }
 
     /**
@@ -94,22 +108,22 @@ public class GlobalExceptionHandler
      * 拦截未知的运行时异常
      */
     @ExceptionHandler(RuntimeException.class)
-    public AjaxResult handleRuntimeException(RuntimeException e, HttpServletRequest request)
+    public ResponseEntity<ErrorResponse> handleRuntimeException(RuntimeException e, HttpServletRequest request)
     {
         String requestURI = request.getRequestURI();
         log.error("请求地址'{}',发生未知异常.", requestURI, e);
-        return AjaxResult.error(e.getMessage());
+        return error(HttpStatus.ERROR, "INTERNAL_ERROR", "系统内部错误", request);
     }
 
     /**
      * 系统异常
      */
     @ExceptionHandler(Exception.class)
-    public AjaxResult handleException(Exception e, HttpServletRequest request)
+    public ResponseEntity<ErrorResponse> handleException(Exception e, HttpServletRequest request)
     {
         String requestURI = request.getRequestURI();
         log.error("请求地址'{}',发生系统异常.", requestURI, e);
-        return AjaxResult.error(e.getMessage());
+        return error(HttpStatus.ERROR, "INTERNAL_ERROR", "系统内部错误", request);
     }
 
     /**
@@ -141,5 +155,22 @@ public class GlobalExceptionHandler
     public AjaxResult handleDemoModeException(DemoModeException e)
     {
         return AjaxResult.error("演示模式，不允许操作");
+    }
+
+    private ResponseEntity<ErrorResponse> error(int status, String errorCode, String message,
+            HttpServletRequest request)
+    {
+        String traceId = traceId(request);
+        ErrorResponse response = new ErrorResponse(
+                status, errorCode, message, traceId, OffsetDateTime.now(clock));
+        return ResponseEntity.status(status)
+                .header(TraceIdFilter.TRACE_ID_HEADER, traceId)
+                .body(response);
+    }
+
+    private static String traceId(HttpServletRequest request)
+    {
+        Object traceId = request.getAttribute(TraceIdFilter.TRACE_ID_ATTRIBUTE);
+        return traceId instanceof String value && !value.isEmpty() ? value : UUID.randomUUID().toString();
     }
 }

@@ -224,9 +224,9 @@ function handleUnlock() {
 
 /** 导出按钮操作 */
 function handleExport() {
-  proxy.download("monitor/logininfor/export", {
+  void proxy.download("monitor/logininfor/export", {
     ...queryParams.value,
-  }, `logininfor_${new Date().getTime()}.xlsx`)
+  }, `logininfor_${new Date().getTime()}.xlsx`).catch(() => undefined)
 }
 
 getList()

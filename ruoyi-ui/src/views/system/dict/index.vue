@@ -329,9 +329,9 @@ function handleDelete(row) {
 
 /** 导出按钮操作 */
 function handleExport() {
-  proxy.download("system/dict/type/export", {
+  void proxy.download("system/dict/type/export", {
     ...queryParams.value
-  }, `dict_${new Date().getTime()}.xlsx`)
+  }, `dict_${new Date().getTime()}.xlsx`).catch(() => undefined)
 }
 
 /** 刷新缓存按钮操作 */

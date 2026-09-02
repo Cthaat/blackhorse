@@ -426,9 +426,9 @@ function handleDelete(row) {
 
 /** 导出按钮操作 */
 function handleExport() {
-  proxy.download("monitor/job/export", {
+  void proxy.download("monitor/job/export", {
     ...queryParams.value,
-  }, `job_${new Date().getTime()}.xlsx`)
+  }, `job_${new Date().getTime()}.xlsx`).catch(() => undefined)
 }
 
 getList()

@@ -332,9 +332,9 @@ function handleDelete(row) {
 
 /** 导出按钮操作 */
 function handleExport() {
-  proxy.download("system/role/export", {
+  void proxy.download("system/role/export", {
     ...queryParams.value,
-  }, `role_${new Date().getTime()}.xlsx`)
+  }, `role_${new Date().getTime()}.xlsx`).catch(() => undefined)
 }
 
 /** 多选框选中数据 */

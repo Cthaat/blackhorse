@@ -39,6 +39,7 @@ import useUserStore from '@/store/modules/user'
 import useLockStore from '@/store/modules/lock'
 import { unlockScreen } from '@/api/login'
 import defAva from '@/assets/images/profile.jpg'
+import { resolveLabErrorMessage } from '@/utils/lab/errorMessage'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -86,8 +87,7 @@ const handleUnlock = async () => {
     lockStore.unlockScreen()
     router.replace(lockPath)
   } catch (err) {
-    const msg = err.message || err.toString()
-    showError(msg)
+    showError(resolveLabErrorMessage(err))
     password.value = ''
     nextTick(() => passwordInput.value?.focus())
   } finally {

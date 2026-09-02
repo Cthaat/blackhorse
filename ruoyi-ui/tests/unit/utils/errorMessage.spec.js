@@ -19,19 +19,30 @@ describe('resolveLabErrorMessage', () => {
     expect(resolveLabErrorMessage({ response: { status } })).toBe(DEFAULT_MESSAGE)
   })
 
-  it('prefers the server business message', () => {
-    const error = { response: { status: 409, data: { msg: '该设备在所选时段已被预约' } } }
+  it('allows the exact reservation conflict contract', () => {
+    const error = {
+      response: {
+        status: 409,
+        data: {
+          errorCode: 'LAB_RESERVATION_TIME_CONFLICT',
+          msg: '该设备在所选时段已被预约'
+        }
+      }
+    }
     expect(resolveLabErrorMessage(error)).toBe('该设备在所选时段已被预约')
   })
 
-  it('trims the approved server business message', () => {
-    const error = { response: { status: 409, data: { msg: '  该设备在所选时段已被预约  ' } } }
-    expect(resolveLabErrorMessage(error)).toBe('该设备在所选时段已被预约')
-  })
-
-  it('does not use the approved message for another status', () => {
-    const error = { response: { status: 400, data: { msg: '该设备在所选时段已被预约' } } }
-    expect(resolveLabErrorMessage(error)).toBe('请求参数不正确')
+  it.each([
+    ['missing error code', 409, undefined, '该设备在所选时段已被预约'],
+    ['wrong error code', 409, 'LAB_DEVICE_UNAVAILABLE', '该设备在所选时段已被预约'],
+    ['string HTTP status', '409', 'LAB_RESERVATION_TIME_CONFLICT', '该设备在所选时段已被预约'],
+    ['another HTTP status', 400, 'LAB_RESERVATION_TIME_CONFLICT', '该设备在所选时段已被预约'],
+    ['leading whitespace', 409, 'LAB_RESERVATION_TIME_CONFLICT', '  该设备在所选时段已被预约'],
+    ['trailing whitespace', 409, 'LAB_RESERVATION_TIME_CONFLICT', '该设备在所选时段已被预约  ']
+  ])('rejects the approved text when the %s does not match exactly', (_label, status, errorCode, msg) => {
+    const error = { response: { status, data: { errorCode, msg } } }
+    const expected = status === 400 ? '请求参数不正确' : DEFAULT_MESSAGE
+    expect(resolveLabErrorMessage(error)).toBe(status === 409 ? '当前状态或数据已发生冲突' : expected)
   })
 
   it('rejects an unapproved Chinese business message', () => {
@@ -87,5 +98,24 @@ describe('resolveLabErrorMessage', () => {
     }
 
     expect(resolveLabErrorMessage(error)).toBe(DEFAULT_MESSAGE)
+  })
+
+  it('maps a legacy numeric response code without using its message', () => {
+    const error = {
+      response: {
+        status: 200,
+        data: { code: 403, msg: '内部角色：admin，权限：*:*:*' }
+      }
+    }
+
+    expect(resolveLabErrorMessage(error)).toBe('没有执行该操作的权限')
+  })
+
+  it.each([
+    [{ code: 'ECONNABORTED', message: 'timeout after reaching 10.0.0.8' }, '系统接口请求超时'],
+    [{ code: 'ETIMEDOUT', message: 'socket details must stay private' }, '系统接口请求超时'],
+    [{ message: 'Network Error' }, '后端接口连接异常']
+  ])('uses a fixed transport message for %#', (error, message) => {
+    expect(resolveLabErrorMessage(error)).toBe(message)
   })
 })

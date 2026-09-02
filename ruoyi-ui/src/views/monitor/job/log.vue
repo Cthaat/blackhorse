@@ -231,9 +231,9 @@ function handleClean() {
 
 /** 导出按钮操作 */
 function handleExport() {
-  proxy.download("monitor/jobLog/export", {
+  void proxy.download("monitor/jobLog/export", {
     ...queryParams.value,
-  }, `job_log_${new Date().getTime()}.xlsx`)
+  }, `job_log_${new Date().getTime()}.xlsx`).catch(() => undefined)
 }
 
 (() => {
