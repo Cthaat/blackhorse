@@ -42,13 +42,15 @@ class LabAssetSchemaMigrationIT
                     "lab_attachment",
                     "lab_status_history");
             assertThat(indexNames(connection, "lab_laboratory"))
-                    .contains("uk_lab_laboratory_code");
+                    .contains("uk_lab_laboratory_code", "idx_lab_laboratory_scope");
             assertThat(indexNames(connection, "lab_device"))
                     .contains("uk_lab_device_asset_no", "idx_lab_device_query");
             assertThat(indexNames(connection, "lab_qualification"))
-                    .contains("idx_lab_qualification_user_validity");
+                    .contains("idx_lab_qualification_user_validity", "idx_lab_qualification_scope");
             assertThat(indexNames(connection, "lab_attachment"))
                     .contains("idx_lab_attachment_object");
+            assertThat(indexNames(connection, "lab_status_history"))
+                    .contains("idx_lab_status_history_object");
             assertThat(foreignKeys(connection, "lab_device"))
                     .contains(new ForeignKey("fk_lab_device_laboratory", "laboratory_id",
                             "lab_laboratory", "id"));
