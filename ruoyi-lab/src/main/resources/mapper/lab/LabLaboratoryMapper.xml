@@ -27,6 +27,54 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         l.update_by, l.update_time, l.del_flag
     </sql>
 
+    <sql id="LaboratoryScopePredicate">
+        <choose>
+            <when test="scope != null and scope.allLaboratories">
+                <!-- unrestricted scope -->
+            </when>
+            <when test="scope != null and scope.restricted() and scope.laboratoryIds != null and !scope.laboratoryIds.isEmpty()">
+                and l.id in
+                <foreach collection="scope.laboratoryIds" item="scopeLaboratoryId" open="(" separator="," close=")">
+                    #{scopeLaboratoryId}
+                </foreach>
+            </when>
+            <otherwise>
+                and 1 = 0
+            </otherwise>
+        </choose>
+    </sql>
+
+    <select id="selectListByScope" resultMap="LabLaboratoryResult">
+        select <include refid="LaboratoryColumns" />
+        from lab_laboratory l
+        where l.del_flag = '0'
+        <include refid="LaboratoryScopePredicate" />
+        <if test="status != null">
+            and l.status = #{status}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            and (l.lab_code like concat('%', #{keyword}, '%')
+                or l.name like concat('%', #{keyword}, '%')
+                or l.location like concat('%', #{keyword}, '%'))
+        </if>
+        <choose>
+            <when test="sort != null">
+                order by ${sort.column} ${sort.direction}
+            </when>
+            <otherwise>
+                order by l.create_time desc
+            </otherwise>
+        </choose>
+    </select>
+
+    <select id="selectByIdInScope" resultMap="LabLaboratoryResult">
+        select <include refid="LaboratoryColumns" />
+        from lab_laboratory l
+        where l.id = #{laboratoryId}
+          and l.del_flag = '0'
+        <include refid="LaboratoryScopePredicate" />
+    </select>
+
     <select id="selectByIdForUpdate" resultMap="LabLaboratoryResult">
         select <include refid="LaboratoryColumns" />
         from lab_laboratory l
@@ -34,5 +82,20 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
           and l.del_flag = '0'
         for update
     </select>
+
+    <update id="updateDetailsConditionally">
+        update lab_laboratory
+        set lab_code = #{laboratory.labCode},
+            name = #{laboratory.name},
+            dept_id = #{laboratory.deptId},
+            manager_id = #{laboratory.managerId},
+            location = #{laboratory.location},
+            description = #{laboratory.description},
+            update_by = #{laboratory.updateBy},
+            version = version + 1
+        where id = #{laboratory.id}
+          and version = #{expectedVersion}
+          and del_flag = '0'
+    </update>
 
 </mapper>

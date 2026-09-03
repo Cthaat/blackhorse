@@ -32,6 +32,25 @@ class LabSortWhitelistTest
         assertThat(whitelist.resolve("device", "name", "DeSc").direction()).isEqualTo("DESC");
     }
 
+    @Test
+    void sortClauseRejectsDirectConstructionWithUntrustedColumn()
+    {
+        assertThatThrownBy(() -> new LabSortWhitelist.SortClause("updatexml(1,1,1)", "ASC"))
+                .isInstanceOf(LabBusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(LabErrorCode.VALIDATION_ERROR);
+    }
+
+    @ParameterizedTest
+    @MethodSource("invalidDirectDirections")
+    void sortClauseRejectsDirectConstructionWithUntrustedDirection(String direction)
+    {
+        assertThatThrownBy(() -> new LabSortWhitelist.SortClause("d.name", direction))
+                .isInstanceOf(LabBusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(LabErrorCode.VALIDATION_ERROR);
+    }
+
     @ParameterizedTest
     @MethodSource("invalidSorts")
     void rejectsInvalidSortInput(String resource, String key, String direction)
@@ -70,5 +89,14 @@ class LabSortWhitelistTest
                 Arguments.of("device", "updatexml(1,1,1)", "asc"),
                 Arguments.of("device", "name", "ascending"),
                 Arguments.of("device", "name", " desc"));
+    }
+
+    private static Stream<Arguments> invalidDirectDirections()
+    {
+        return Stream.of(
+                Arguments.of((String) null),
+                Arguments.of("asc"),
+                Arguments.of("DESC "),
+                Arguments.of("ASC, (select 1)"));
     }
 }

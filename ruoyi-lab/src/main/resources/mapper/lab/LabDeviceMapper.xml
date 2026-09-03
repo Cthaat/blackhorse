@@ -31,6 +31,61 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         d.del_flag
     </sql>
 
+    <sql id="DeviceScopePredicate">
+        <choose>
+            <when test="scope != null and scope.allLaboratories">
+                <!-- unrestricted scope -->
+            </when>
+            <when test="scope != null and scope.restricted() and scope.laboratoryIds != null and !scope.laboratoryIds.isEmpty()">
+                and d.laboratory_id in
+                <foreach collection="scope.laboratoryIds" item="scopeLaboratoryId" open="(" separator="," close=")">
+                    #{scopeLaboratoryId}
+                </foreach>
+            </when>
+            <otherwise>
+                and 1 = 0
+            </otherwise>
+        </choose>
+    </sql>
+
+    <select id="selectListByScope" resultMap="LabDeviceResult">
+        select <include refid="DeviceColumns" />
+        from lab_device d
+        where d.del_flag = '0'
+        <include refid="DeviceScopePredicate" />
+        <if test="laboratoryId != null">
+            and d.laboratory_id = #{laboratoryId}
+        </if>
+        <if test="categoryCode != null and categoryCode != ''">
+            and d.category_code = #{categoryCode}
+        </if>
+        <if test="status != null">
+            and d.status = #{status}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            and (d.asset_no like concat('%', #{keyword}, '%')
+                or d.name like concat('%', #{keyword}, '%')
+                or d.model like concat('%', #{keyword}, '%')
+                or d.location like concat('%', #{keyword}, '%'))
+        </if>
+        <choose>
+            <when test="sort != null">
+                order by ${sort.column} ${sort.direction}
+            </when>
+            <otherwise>
+                order by d.create_time desc
+            </otherwise>
+        </choose>
+    </select>
+
+    <select id="selectByIdInScope" resultMap="LabDeviceResult">
+        select <include refid="DeviceColumns" />
+        from lab_device d
+        where d.id = #{deviceId}
+          and d.del_flag = '0'
+        <include refid="DeviceScopePredicate" />
+    </select>
+
     <select id="selectByIdForUpdate" resultMap="LabDeviceResult">
         select <include refid="DeviceColumns" />
         from lab_device d
@@ -38,6 +93,24 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
           and d.del_flag = '0'
         for update
     </select>
+
+    <update id="updateDetailsConditionally">
+        update lab_device
+        set asset_no = #{device.assetNo},
+            laboratory_id = #{device.laboratoryId},
+            name = #{device.name},
+            category_code = #{device.categoryCode},
+            model = #{device.model},
+            risk_level = #{device.riskLevel},
+            location = #{device.location},
+            manager_id = #{device.managerId},
+            description = #{device.description},
+            update_by = #{device.updateBy},
+            version = version + 1
+        where id = #{device.id}
+          and version = #{expectedVersion}
+          and del_flag = '0'
+    </update>
 
     <update id="updateStatusConditionally">
         update lab_device

@@ -2,6 +2,8 @@ package com.ruoyi.lab.service;
 
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import com.ruoyi.lab.exception.LabBusinessException;
 import com.ruoyi.lab.exception.LabErrorCode;
 
@@ -23,6 +25,10 @@ public final class LabSortWhitelist
             "qualification", Map.of(
                     "validUntil", "q.valid_until",
                     "createTime", "q.create_time"));
+
+    private static final Set<String> ALLOWED_COLUMNS = COLUMNS.values().stream()
+            .flatMap(columns -> columns.values().stream())
+            .collect(Collectors.toUnmodifiableSet());
 
     public SortClause resolve(String resource, String key, String direction)
     {
@@ -55,5 +61,16 @@ public final class LabSortWhitelist
      */
     public record SortClause(String column, String direction)
     {
+        public SortClause
+        {
+            if (column == null || !ALLOWED_COLUMNS.contains(column))
+            {
+                throw new LabBusinessException(LabErrorCode.VALIDATION_ERROR, "非法排序字段");
+            }
+            if (!"ASC".equals(direction) && !"DESC".equals(direction))
+            {
+                throw new LabBusinessException(LabErrorCode.VALIDATION_ERROR, "非法排序方向");
+            }
+        }
     }
 }
