@@ -48,7 +48,7 @@ class LabAssetSchemaMigrationIT
             assertThat(indexNames(connection, "lab_qualification"))
                     .contains("idx_lab_qualification_user_validity", "idx_lab_qualification_scope");
             assertThat(indexNames(connection, "lab_attachment"))
-                    .contains("idx_lab_attachment_object");
+                    .contains("uk_lab_attachment_storage_key", "idx_lab_attachment_object");
             assertThat(indexNames(connection, "lab_status_history"))
                     .contains("idx_lab_status_history_object");
             assertThat(foreignKeys(connection, "lab_device"))
@@ -66,6 +66,9 @@ class LabAssetSchemaMigrationIT
             insertDevice(connection, "ASSET-001", laboratoryId);
             assertIntegrityViolation(() -> insertDevice(connection, "ASSET-001", laboratoryId));
             assertIntegrityViolation(() -> insertDevice(connection, "ASSET-ORPHAN", Long.MAX_VALUE));
+
+            insertAttachment(connection, "laboratory/1/report.pdf");
+            assertIntegrityViolation(() -> insertAttachment(connection, "laboratory/1/report.pdf"));
         }
     }
 
@@ -83,13 +86,13 @@ class LabAssetSchemaMigrationIT
 
     private static DatabaseConfig databaseOrSkip()
     {
-        String marker = environment("LAB_TEST_WRAPPER_ACTIVE");
+        String marker = controlEnvironment("LAB_TEST_WRAPPER_ACTIVE");
         Assumptions.assumeTrue(!marker.isBlank(),
                 "real database assertions require scripts/run-lab-tests.ps1");
         assertThat(marker).isEqualTo("true");
-        assertThat(environment("LAB_TEST_FLYWAY_ENABLED")).isEqualTo("true");
+        assertThat(controlEnvironment("LAB_TEST_FLYWAY_ENABLED")).isEqualTo("true");
 
-        String url = environment("LAB_TEST_DB_URL");
+        String url = controlEnvironment("LAB_TEST_DB_URL");
         Matcher matcher = SAFE_URL.matcher(url);
         assertThat(matcher.matches())
                 .as("LAB_TEST_DB_URL identifies an isolated loopback lab_test database")
@@ -206,6 +209,25 @@ class LabAssetSchemaMigrationIT
         }
     }
 
+    private static void insertAttachment(Connection connection, String storageKey) throws SQLException
+    {
+        String sql = "insert into lab_attachment "
+                + "(business_type, business_id, original_name, stored_name, mime_type, size, storage_key, sha256) "
+                + "values (?, ?, ?, ?, ?, ?, ?, ?)";
+        try (PreparedStatement statement = connection.prepareStatement(sql))
+        {
+            statement.setString(1, "LABORATORY");
+            statement.setLong(2, 1L);
+            statement.setString(3, "实验报告.pdf");
+            statement.setString(4, "report.pdf");
+            statement.setString(5, "application/pdf");
+            statement.setLong(6, 1024L);
+            statement.setString(7, storageKey);
+            statement.setString(8, "0".repeat(64));
+            statement.executeUpdate();
+        }
+    }
+
     private static void assertIntegrityViolation(SqlAction action)
     {
         assertThatThrownBy(action::execute)
@@ -222,7 +244,12 @@ class LabAssetSchemaMigrationIT
     private static String environment(String name)
     {
         String value = System.getenv(name);
-        return value == null ? "" : value.trim();
+        return value == null ? "" : value;
+    }
+
+    private static String controlEnvironment(String name)
+    {
+        return environment(name).trim();
     }
 
     @FunctionalInterface
