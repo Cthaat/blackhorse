@@ -13,6 +13,7 @@ import com.ruoyi.lab.exception.LabBusinessException;
 import com.ruoyi.lab.exception.LabErrorCode;
 import com.ruoyi.lab.mapper.LabDeviceMapper;
 import com.ruoyi.lab.mapper.LabLaboratoryMapper;
+import com.ruoyi.lab.mapper.LabReservationMapper;
 import com.ruoyi.lab.security.LabDataScope;
 import com.ruoyi.lab.security.LabDataScopeService;
 import com.ruoyi.lab.security.LabObjectPermissionService;
@@ -36,10 +37,12 @@ public class DeviceServiceImpl implements DeviceService
     private final LabObjectPermissionService objectPermissionService;
     private final LabSortWhitelist sortWhitelist;
     private final LabStatusHistoryService historyService;
+    private final LabReservationMapper reservationMapper;
 
     public DeviceServiceImpl(LabDeviceMapper deviceMapper, LabLaboratoryMapper laboratoryMapper,
             LabDataScopeService dataScopeService, LabObjectPermissionService objectPermissionService,
-            LabSortWhitelist sortWhitelist, LabStatusHistoryService historyService)
+            LabSortWhitelist sortWhitelist, LabStatusHistoryService historyService,
+            LabReservationMapper reservationMapper)
     {
         this.deviceMapper = deviceMapper;
         this.laboratoryMapper = laboratoryMapper;
@@ -47,6 +50,7 @@ public class DeviceServiceImpl implements DeviceService
         this.objectPermissionService = objectPermissionService;
         this.sortWhitelist = sortWhitelist;
         this.historyService = historyService;
+        this.reservationMapper = reservationMapper;
     }
 
     @Override
@@ -129,8 +133,12 @@ public class DeviceServiceImpl implements DeviceService
         {
             throw new LabBusinessException(LabErrorCode.VALIDATION_ERROR, "占用时间范围无效");
         }
+        if (java.time.Duration.between(from, to).toDays() > 30)
+        {
+            throw new LabBusinessException(LabErrorCode.VALIDATION_ERROR, "占用时间范围不能超过三十天");
+        }
         objectPermissionService.assertDeviceReadable(id);
-        return List.of();
+        return reservationMapper.selectOccupiedRanges(id, from, to);
     }
 
     private LabDevice requireInScope(long id, LabDataScope scope)

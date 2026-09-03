@@ -28,7 +28,10 @@ class LabMapperXmlContractTest
             "mapper/lab/LabDeviceMapper.xml",
             "mapper/lab/LabQualificationMapper.xml",
             "mapper/lab/LabDataScopeMapper.xml",
-            "mapper/lab/LabDictionaryMapper.xml");
+            "mapper/lab/LabDictionaryMapper.xml",
+            "mapper/lab/LabAttachmentMapper.xml",
+            "mapper/lab/LabReservationMapper.xml",
+            "mapper/lab/LabSystemConfigMapper.xml");
 
     private Configuration configuration;
 
@@ -68,7 +71,13 @@ class LabMapperXmlContractTest
                 statement(LabQualificationMapper.class, "countValidForDevice"),
                 statement(LabDataScopeMapper.class, "hasAllLaboratoryScope"),
                 statement(LabDataScopeMapper.class, "selectScopedLaboratoryIds"),
-                statement(LabDictionaryMapper.class, "countEnabledValue"));
+                statement(LabDictionaryMapper.class, "countEnabledValue"),
+                statement(LabAttachmentMapper.class, "selectByIdForUpdate"),
+                statement(LabAttachmentMapper.class, "countActiveByObject"),
+                statement(LabReservationMapper.class, "selectByIdForUpdate"),
+                statement(LabReservationMapper.class, "countActiveOverlaps"),
+                statement(LabReservationMapper.class, "updateStatusConditionally"),
+                statement(LabSystemConfigMapper.class, "selectValueByKey"));
     }
 
     @Test

@@ -26,7 +26,12 @@ public final class LabSortWhitelist
                     "createTime", "d.create_time"),
             "qualification", Map.of(
                     "validUntil", "q.valid_until",
-                    "createTime", "q.create_time"));
+                    "createTime", "q.create_time"),
+            "reservation", Map.of(
+                    "reservationNo", "r.reservation_no",
+                    "startTime", "r.start_time",
+                    "createTime", "r.create_time",
+                    "status", "r.status"));
 
     private static final Set<String> ALLOWED_COLUMNS = COLUMNS.values().stream()
             .flatMap(columns -> columns.values().stream())

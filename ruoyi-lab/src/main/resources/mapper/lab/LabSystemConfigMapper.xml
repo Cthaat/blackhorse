@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.lab.mapper.LabSystemConfigMapper">
+    <select id="selectValueByKey" resultType="string">
+        select config_value
+        from sys_config
+        where config_key = #{configKey}
+          and status = '0'
+        limit 1
+    </select>
+</mapper>
