@@ -21,6 +21,8 @@ public interface LabQualificationMapper extends BaseMapper<LabQualification>
             @Param("userId") Long userId, @Param("scopeType") QualificationScopeType scopeType,
             @Param("sort") SortClause sort);
 
+    LabQualification selectActiveById(@Param("qualificationId") Long qualificationId);
+
     LabQualification selectByIdForUpdate(@Param("qualificationId") Long qualificationId);
 
     int updateDetailsConditionally(@Param("qualification") LabQualification qualification,

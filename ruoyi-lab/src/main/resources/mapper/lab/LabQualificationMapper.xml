@@ -44,16 +44,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                               #{scopeLaboratoryId}
                           </foreach>
                     ))
-                    or (q.scope_type = 'DEVICE_CATEGORY' and exists (
-                        select 1
-                        from lab_device scoped_device
-                        where scoped_device.category_code = q.scope_id
-                          and scoped_device.del_flag = '0'
-                          and scoped_device.laboratory_id in
-                          <foreach collection="scope.laboratoryIds" item="scopeLaboratoryId" open="(" separator="," close=")">
-                              #{scopeLaboratoryId}
-                          </foreach>
-                    ))
+                    or q.scope_type = 'DEVICE_CATEGORY'
                 )
             </when>
             <otherwise>
@@ -93,6 +84,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             and q.scope_type = #{scopeType}
         </if>
         <include refid="QualificationOrderBy" />
+    </select>
+
+    <select id="selectActiveById" resultMap="LabQualificationResult">
+        select <include refid="QualificationColumns" />
+        from lab_qualification q
+        where q.id = #{qualificationId}
+          and q.del_flag = '0'
     </select>
 
     <select id="selectByIdForUpdate" resultMap="LabQualificationResult">

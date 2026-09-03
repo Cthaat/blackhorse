@@ -27,7 +27,8 @@ class LabMapperXmlContractTest
             "mapper/lab/LabLaboratoryMapper.xml",
             "mapper/lab/LabDeviceMapper.xml",
             "mapper/lab/LabQualificationMapper.xml",
-            "mapper/lab/LabDataScopeMapper.xml");
+            "mapper/lab/LabDataScopeMapper.xml",
+            "mapper/lab/LabDictionaryMapper.xml");
 
     private Configuration configuration;
 
@@ -60,12 +61,14 @@ class LabMapperXmlContractTest
                 statement(LabDeviceMapper.class, "updateStatusConditionally"),
                 statement(LabQualificationMapper.class, "selectMine"),
                 statement(LabQualificationMapper.class, "selectListByScope"),
+                statement(LabQualificationMapper.class, "selectActiveById"),
                 statement(LabQualificationMapper.class, "selectByIdForUpdate"),
                 statement(LabQualificationMapper.class, "updateDetailsConditionally"),
                 statement(LabQualificationMapper.class, "revokeConditionally"),
                 statement(LabQualificationMapper.class, "countValidForDevice"),
                 statement(LabDataScopeMapper.class, "hasAllLaboratoryScope"),
-                statement(LabDataScopeMapper.class, "selectScopedLaboratoryIds"));
+                statement(LabDataScopeMapper.class, "selectScopedLaboratoryIds"),
+                statement(LabDictionaryMapper.class, "countEnabledValue"));
     }
 
     @Test
@@ -131,6 +134,30 @@ class LabMapperXmlContractTest
                 "q.revoked_at is null",
                 "q.scope_type = 'laboratory'",
                 "q.scope_type = 'device_category'");
+    }
+
+    @Test
+    void dictionaryLookupUsesBoundValuesAndEnabledRows()
+    {
+        String sql = sql(statement(LabDictionaryMapper.class, "countEnabledValue"),
+                params("dictType", "lab_device_category", "dictValue", "MICROSCOPE"));
+
+        assertThat(sql)
+                .contains("t.status = '0'", "d.status = '0'", "t.dict_type = ?", "d.dict_value = ?")
+                .doesNotContain("${");
+    }
+
+    @Test
+    void categoryQualificationManagementRequiresOnlyANonEmptyScope()
+    {
+        String sql = sql(statement(LabQualificationMapper.class, "selectListByScope"),
+                params("scope", new LabDataScope(7L, false, Set.of(10L)),
+                        "userId", null, "scopeType", null,
+                        "sort", new LabSortWhitelist().resolve("qualification", "createTime", "desc")));
+
+        assertThat(sql)
+                .contains("q.scope_type = 'device_category'")
+                .doesNotContain("from lab_device scoped_device");
     }
 
     private String sql(String statementId, Map<String, Object> parameters)
