@@ -86,7 +86,7 @@ spring:
       # 数据库索引
       database: 0
       # 密码
-      password: ${LAB_REDIS_PASSWORD}
+      password: ${LAB_REDIS_PASSWORD:}
       # 连接超时时间
       timeout: 10s
       lettuce:
@@ -105,7 +105,7 @@ token:
   # 令牌自定义标识
   header: Authorization
   # 令牌密钥
-  secret: ${LAB_TOKEN_SECRET}
+  secret: ${LAB_TOKEN_SECRET:${random.uuid}${random.uuid}}
   # 令牌有效期（默认30分钟）
   expireTime: 30
 
@@ -146,6 +146,8 @@ lab:
     local-root: ${LAB_FILE_ROOT:${user.home}/.blackhorse/lab-files}
     max-file-size: 10MB
     max-files-per-object: 5
+  jobs:
+    batch-size: ${LAB_JOBS_BATCH_SIZE:200}
 
 # 防盗链配置
 referer:

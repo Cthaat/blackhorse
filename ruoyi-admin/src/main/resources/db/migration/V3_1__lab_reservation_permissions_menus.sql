@@ -21,7 +21,7 @@ or exists (
 )
 or (select count(distinct role_key) from sys_role
     where role_key in ('lab_student', 'lab_manager')
-      and status = '0' and del_flag = '0') &lt;&gt; 2;
+      and status = '0' and del_flag = '0') <> 2;
 
 insert into sys_menu
     (menu_id, menu_name, parent_id, order_num, path, component, query, route_name,

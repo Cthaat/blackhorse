@@ -29,6 +29,12 @@
             <artifactId>ruoyi-common</artifactId>
         </dependency>
 
+        <!-- 实验室生命周期任务只依赖业务服务端口，不访问 Mapper -->
+        <dependency>
+            <groupId>com.ruoyi</groupId>
+            <artifactId>ruoyi-lab</artifactId>
+        </dependency>
+
     </dependencies>
 
 </project>

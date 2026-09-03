@@ -31,7 +31,18 @@ class LabMapperXmlContractTest
             "mapper/lab/LabDictionaryMapper.xml",
             "mapper/lab/LabAttachmentMapper.xml",
             "mapper/lab/LabReservationMapper.xml",
-            "mapper/lab/LabSystemConfigMapper.xml");
+            "mapper/lab/LabSystemConfigMapper.xml",
+            "mapper/lab/LabUsageRecordMapper.xml",
+            "mapper/lab/LabRepairOrderMapper.xml",
+            "mapper/lab/LabInspectionPlanMapper.xml",
+            "mapper/lab/LabInspectionPlanItemMapper.xml",
+            "mapper/lab/LabInspectionTaskMapper.xml",
+            "mapper/lab/LabInspectionItemMapper.xml",
+            "mapper/lab/LabHazardMapper.xml",
+            "mapper/lab/LabRectificationMapper.xml",
+            "mapper/lab/LabSystemOperatorMapper.xml",
+            "mapper/lab/LabNotificationMapper.xml",
+            "mapper/lab/LabDashboardMapper.xml");
 
     private Configuration configuration;
 

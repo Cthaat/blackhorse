@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.lab.mapper.LabDashboardMapper">
+
+    <select id="countPendingReservations" resultType="long">
+        select count(1)
+        from lab_reservation r
+        join lab_device d on d.id = r.device_id and d.del_flag = '0'
+        where r.del_flag = '0' and r.status in ('PENDING', 'APPROVED')
+          and (
+              r.applicant_id = #{userId}
+              <choose>
+                  <when test="scope != null and scope.allLaboratories">or 1 = 1</when>
+                  <when test="scope != null and scope.restricted() and scope.laboratoryIds != null and !scope.laboratoryIds.isEmpty()">
+                      or d.laboratory_id in
+                      <foreach collection="scope.laboratoryIds" item="laboratoryId" open="(" separator="," close=")">
+                          #{laboratoryId}
+                      </foreach>
+                  </when>
+              </choose>
+          )
+    </select>
+
+    <select id="countOpenUsage" resultType="long">
+        select count(1)
+        from lab_usage_record u
+        join lab_device d on d.id = u.device_id and d.del_flag = '0'
+        where u.del_flag = '0' and u.returned_at is null
+          and (
+              u.user_id = #{userId}
+              <choose>
+                  <when test="scope != null and scope.allLaboratories">or 1 = 1</when>
+                  <when test="scope != null and scope.restricted() and scope.laboratoryIds != null and !scope.laboratoryIds.isEmpty()">
+                      or d.laboratory_id in
+                      <foreach collection="scope.laboratoryIds" item="laboratoryId" open="(" separator="," close=")">
+                          #{laboratoryId}
+                      </foreach>
+                  </when>
+              </choose>
+          )
+    </select>
+
+    <select id="countOpenRepairs" resultType="long">
+        select count(1)
+        from lab_repair_order repair
+        join lab_device d on d.id = repair.device_id and d.del_flag = '0'
+        where repair.del_flag = '0' and repair.status &lt;&gt; 'CLOSED'
+          and (
+              repair.reporter_id = #{userId} or repair.assignee_id = #{userId}
+              <choose>
+                  <when test="scope != null and scope.allLaboratories">or 1 = 1</when>
+                  <when test="scope != null and scope.restricted() and scope.laboratoryIds != null and !scope.laboratoryIds.isEmpty()">
+                      or d.laboratory_id in
+                      <foreach collection="scope.laboratoryIds" item="laboratoryId" open="(" separator="," close=")">
+                          #{laboratoryId}
+                      </foreach>
+                  </when>
+              </choose>
+          )
+    </select>
+
+    <select id="countPendingInspections" resultType="long">
+        select count(1)
+        from lab_inspection_task task
+        where task.del_flag = '0' and task.status in ('PENDING', 'IN_PROGRESS')
+          and (
+              task.assignee_id = #{userId}
+              <choose>
+                  <when test="scope != null and scope.allLaboratories">or 1 = 1</when>
+                  <when test="scope != null and scope.restricted() and scope.laboratoryIds != null and !scope.laboratoryIds.isEmpty()">
+                      or task.laboratory_id in
+                      <foreach collection="scope.laboratoryIds" item="laboratoryId" open="(" separator="," close=")">
+                          #{laboratoryId}
+                      </foreach>
+                  </when>
+              </choose>
+          )
+    </select>
+
+    <select id="countOpenHazards" resultType="long">
+        select count(1)
+        from lab_hazard hazard
+        left join lab_device d on hazard.target_type = 'DEVICE'
+                              and d.id = hazard.target_id and d.del_flag = '0'
+        where hazard.del_flag = '0' and hazard.status &lt;&gt; 'CLOSED'
+          and (
+              hazard.owner_id = #{userId}
+              <choose>
+                  <when test="scope != null and scope.allLaboratories">or 1 = 1</when>
+                  <when test="scope != null and scope.restricted() and scope.laboratoryIds != null and !scope.laboratoryIds.isEmpty()">
+                      or (hazard.target_type = 'LABORATORY' and hazard.target_id in
+                          <foreach collection="scope.laboratoryIds" item="laboratoryId" open="(" separator="," close=")">
+                              #{laboratoryId}
+                          </foreach>)
+                      or (hazard.target_type = 'DEVICE' and d.laboratory_id in
+                          <foreach collection="scope.laboratoryIds" item="laboratoryId" open="(" separator="," close=")">
+                              #{laboratoryId}
+                          </foreach>)
+                  </when>
+              </choose>
+          )
+    </select>
+
+    <select id="countUnreadNotifications" resultType="long">
+        select count(1) from lab_notification
+        where receiver_id = #{userId} and read_at is null
+    </select>
+
+</mapper>

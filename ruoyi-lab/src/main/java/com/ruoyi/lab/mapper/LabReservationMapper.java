@@ -55,4 +55,15 @@ public interface LabReservationMapper extends BaseMapper<LabReservation>
 
     List<OccupiedRangeVo> selectOccupiedRanges(@Param("deviceId") Long deviceId,
             @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    List<LabReservation> selectPendingExpiryCandidates(@Param("now") LocalDateTime now,
+            @Param("limit") int limit);
+
+    List<LabReservation> selectNoShowCandidates(@Param("latestStart") LocalDateTime latestStart,
+            @Param("limit") int limit);
+
+    int updateLifecycleConditionally(@Param("reservationId") Long reservationId,
+            @Param("fromStatus") String fromStatus, @Param("toStatus") String toStatus,
+            @Param("expectedVersion") Integer expectedVersion,
+            @Param("operatorName") String operatorName, @Param("now") LocalDateTime now);
 }

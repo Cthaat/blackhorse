@@ -162,4 +162,28 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         order by r.start_time asc
     </select>
 
+    <select id="selectPendingExpiryCandidates" resultMap="LabReservationResult">
+        select <include refid="ReservationColumns" />
+        from lab_reservation r
+        where r.status = 'PENDING' and r.start_time &lt;= #{now} and r.del_flag = '0'
+        order by r.id
+        limit #{limit}
+    </select>
+
+    <select id="selectNoShowCandidates" resultMap="LabReservationResult">
+        select <include refid="ReservationColumns" />
+        from lab_reservation r
+        where r.status = 'APPROVED' and r.start_time &lt;= #{latestStart} and r.del_flag = '0'
+        order by r.id
+        limit #{limit}
+    </select>
+
+    <update id="updateLifecycleConditionally">
+        update lab_reservation
+        set status = #{toStatus}, version = version + 1,
+            update_by = #{operatorName}, update_time = #{now}
+        where id = #{reservationId} and status = #{fromStatus}
+          and version = #{expectedVersion} and del_flag = '0'
+    </update>
+
 </mapper>
