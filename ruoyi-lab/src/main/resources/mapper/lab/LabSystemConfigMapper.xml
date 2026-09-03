@@ -7,7 +7,6 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         select config_value
         from sys_config
         where config_key = #{configKey}
-          and status = '0'
         limit 1
     </select>
 </mapper>

@@ -180,6 +180,31 @@ class LabMapperXmlContractTest
                 .doesNotContain("from lab_device scoped_device");
     }
 
+    @Test
+    void systemOperatorLookupMatchesTheBaselineConfigSchema()
+    {
+        String sql = sql(statement(LabSystemOperatorMapper.class,
+                "selectConfiguredDisabledOperator"), Map.of());
+
+        assertThat(sql)
+                .contains("c.config_key='lab.system.operator-user-id'",
+                        "u.status='1'", "u.del_flag='0'",
+                        "u.user_name='__lab_system_operator__'",
+                        "not exists")
+                .doesNotContain("c.status");
+    }
+
+    @Test
+    void systemParameterLookupMatchesTheBaselineConfigSchema()
+    {
+        String sql = sql(statement(LabSystemConfigMapper.class, "selectValueByKey"),
+                params("configKey", "lab.usage.checkout.late-minutes"));
+
+        assertThat(sql)
+                .contains("from sys_config", "where config_key = ?")
+                .doesNotContain("status");
+    }
+
     private String sql(String statementId, Map<String, Object> parameters)
     {
         MappedStatement statement = configuration.getMappedStatement(statementId);
