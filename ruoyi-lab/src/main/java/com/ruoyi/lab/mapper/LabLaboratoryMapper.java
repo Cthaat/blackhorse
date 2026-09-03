@@ -24,4 +24,7 @@ public interface LabLaboratoryMapper extends BaseMapper<LabLaboratory>
 
     int updateDetailsConditionally(@Param("laboratory") LabLaboratory laboratory,
             @Param("expectedVersion") Integer expectedVersion);
+
+    int updateStatusConditionally(@Param("laboratoryId") Long laboratoryId,
+            @Param("expected") String expected, @Param("target") String target);
 }

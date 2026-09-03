@@ -98,4 +98,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
           and del_flag = '0'
     </update>
 
+    <update id="updateStatusConditionally">
+        update lab_laboratory
+        set status = #{target},
+            version = version + 1
+        where id = #{laboratoryId}
+          and status = #{expected}
+          and del_flag = '0'
+    </update>
+
 </mapper>

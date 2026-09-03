@@ -41,6 +41,12 @@
             <artifactId>spring-context</artifactId>
         </dependency>
 
+        <!-- Transaction boundaries for lifecycle commands -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-tx</artifactId>
+        </dependency>
+
         <!-- 测试基础设施 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

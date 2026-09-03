@@ -6,10 +6,12 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import com.ruoyi.lab.exception.LabBusinessException;
 import com.ruoyi.lab.exception.LabErrorCode;
+import org.springframework.stereotype.Component;
 
 /**
  * Resolves client sort keys to trusted SQL fragments.
  */
+@Component
 public final class LabSortWhitelist
 {
     private static final Map<String, Map<String, String>> COLUMNS = Map.of(
