@@ -7,7 +7,7 @@ ruoyi:
   # 版权年份
   copyrightYear: 2026
   # 文件路径 示例（ Windows配置D:/ruoyi/uploadPath，Linux配置 /home/ruoyi/uploadPath）
-  profile: ${LAB_FILE_ROOT}
+  profile: ${RUOYI_PROFILE_ROOT:${user.home}/.blackhorse/ruoyi-profile}
   # 获取ip地址开关
   addressEnabled: false
   # 验证码类型 math 数字计算 char 字符验证
@@ -139,6 +139,13 @@ springdoc:
 # 二进制不兼容，因此保持关闭。/doc.html 与 JWT Try-it-out 仍在非生产环境可用。
 knife4j:
   enable: false
+
+# 实验室受控附件只写入本机私有目录，不通过静态资源直接暴露
+lab:
+  storage:
+    local-root: ${LAB_FILE_ROOT:${user.home}/.blackhorse/lab-files}
+    max-file-size: 10MB
+    max-files-per-object: 5
 
 # 防盗链配置
 referer:
