@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.lab.mapper.LabRepairOrderMapper">
+
+    <resultMap id="LabRepairOrderResult" type="com.ruoyi.lab.domain.LabRepairOrder">
+        <id property="id" column="id" />
+        <result property="repairNo" column="repair_no" />
+        <result property="deviceId" column="device_id" />
+        <result property="sourceType" column="source_type" />
+        <result property="sourceId" column="source_id" />
+        <result property="reporterId" column="reporter_id" />
+        <result property="faultDescription" column="fault_description" />
+        <result property="assigneeId" column="assignee_id" />
+        <result property="assignedBy" column="assigned_by" />
+        <result property="assignedAt" column="assigned_at" />
+        <result property="startedAt" column="started_at" />
+        <result property="repairResult" column="repair_result" />
+        <result property="resultSubmittedAt" column="result_submitted_at" />
+        <result property="acceptanceResult" column="acceptance_result" />
+        <result property="acceptanceReason" column="acceptance_reason" />
+        <result property="acceptedBy" column="accepted_by" />
+        <result property="acceptedAt" column="accepted_at" />
+        <result property="status" column="status" />
+        <result property="version" column="version" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="delFlag" column="del_flag" />
+    </resultMap>
+
+    <sql id="RepairColumns">
+        id, repair_no, device_id, source_type, source_id, reporter_id,
+        fault_description, assignee_id, assigned_by, assigned_at, started_at,
+        repair_result, result_submitted_at, acceptance_result, acceptance_reason,
+        accepted_by, accepted_at, status, version, create_by, create_time,
+        update_by, update_time, del_flag
+    </sql>
+
+    <sql id="RepairViewColumns">
+        o.id as id, o.repair_no as repairNo, o.device_id as deviceId,
+        d.asset_no as assetNo, d.name as deviceName, o.source_type as sourceType,
+        o.source_id as sourceId, o.reporter_id as reporterId,
+        o.fault_description as faultDescription, o.assignee_id as assigneeId,
+        o.assigned_at as assignedAt, o.started_at as startedAt,
+        o.repair_result as repairResult, o.result_submitted_at as resultSubmittedAt,
+        o.acceptance_result as acceptanceResult, o.acceptance_reason as acceptanceReason,
+        o.accepted_by as acceptedBy, o.accepted_at as acceptedAt, o.status as status,
+        o.version as version, o.create_time as createTime
+    </sql>
+
+    <sql id="RepairScopePredicate">
+        and (
+            o.reporter_id = #{currentUserId}
+            or o.assignee_id = #{currentUserId}
+            <if test="scope != null and scope.allLaboratories">
+                or 1 = 1
+            </if>
+            <if test="scope != null and scope.restricted() and scope.laboratoryIds != null and !scope.laboratoryIds.isEmpty()">
+                or d.laboratory_id in
+                <foreach collection="scope.laboratoryIds" item="labId" open="(" separator="," close=")">
+                    #{labId}
+                </foreach>
+            </if>
+        )
+    </sql>
+
+    <select id="selectActiveById" resultMap="LabRepairOrderResult">
+        select <include refid="RepairColumns" /> from lab_repair_order
+        where id = #{orderId} and del_flag = '0'
+    </select>
+
+    <select id="selectByIdForUpdate" resultMap="LabRepairOrderResult">
+        select <include refid="RepairColumns" /> from lab_repair_order
+        where id = #{orderId} and del_flag = '0' for update
+    </select>
+
+    <select id="selectOpenByDeviceIdForUpdate" resultMap="LabRepairOrderResult">
+        select <include refid="RepairColumns" /> from lab_repair_order
+        where device_id = #{deviceId}
+          and status in ('WAIT_ASSIGN','WAIT_REPAIR','IN_PROGRESS','WAIT_ACCEPTANCE')
+          and del_flag = '0'
+        order by id limit 1 for update
+    </select>
+
+    <select id="selectOpenIdsByDeviceIdForUpdate" resultType="long">
+        select id from lab_repair_order
+        where device_id = #{deviceId}
+          and status in ('WAIT_ASSIGN','WAIT_REPAIR','IN_PROGRESS','WAIT_ACCEPTANCE')
+          and del_flag = '0'
+        order by id for update
+    </select>
+
+    <update id="assignConditionally">
+        update lab_repair_order
+        set assignee_id = #{assigneeId}, assigned_by = #{managerId}, assigned_at = #{now},
+            status = #{target}, update_by = #{operatorName}, update_time = #{now},
+            version = version + 1
+        where id = #{orderId} and status = #{expected} and del_flag = '0'
+    </update>
+
+    <update id="startConditionally">
+        update lab_repair_order
+        set started_at = #{now}, status = #{target}, update_by = #{operatorName},
+            update_time = #{now}, version = version + 1
+        where id = #{orderId} and status = #{expected} and assignee_id = #{assigneeId}
+          and del_flag = '0'
+    </update>
+
+    <update id="submitResultConditionally">
+        update lab_repair_order
+        set repair_result = #{result}, result_submitted_at = #{now}, status = #{target},
+            acceptance_result = null, acceptance_reason = null,
+            accepted_by = null, accepted_at = null,
+            update_by = #{operatorName}, update_time = #{now}, version = version + 1
+        where id = #{orderId} and status = #{expected} and assignee_id = #{assigneeId}
+          and del_flag = '0'
+    </update>
+
+    <update id="saveAcceptanceConditionally">
+        update lab_repair_order
+        set acceptance_result = #{acceptanceResult}, acceptance_reason = #{reason},
+            accepted_by = #{managerId}, accepted_at = #{now}, status = #{target},
+            update_by = #{operatorName}, update_time = #{now}, version = version + 1
+        where id = #{orderId} and status = #{expected} and del_flag = '0'
+    </update>
+
+    <select id="countActiveUserRole" resultType="int">
+        select count(*)
+        from sys_user u
+        join sys_user_role ur on ur.user_id = u.user_id
+        join sys_role r on r.role_id = ur.role_id
+        where u.user_id = #{userId} and u.status = '0' and u.del_flag = '0'
+          and r.role_key = #{roleKey} and r.status = '0' and r.del_flag = '0'
+    </select>
+
+    <select id="selectScopedList" resultType="com.ruoyi.lab.vo.RepairOrderVo">
+        select <include refid="RepairViewColumns" />
+        from lab_repair_order o
+        join lab_device d on d.id = o.device_id and d.del_flag = '0'
+        where o.del_flag = '0'
+        <include refid="RepairScopePredicate" />
+        <if test="query != null and query.repairNo != null and query.repairNo != ''">
+            and o.repair_no = #{query.repairNo}
+        </if>
+        <if test="query != null and query.deviceId != null">
+            and o.device_id = #{query.deviceId}
+        </if>
+        <if test="query != null and query.status != null">
+            and o.status = #{query.status}
+        </if>
+        order by
+        <choose>
+            <when test="query != null and query.sortBy == 'repairNo'">o.repair_no</when>
+            <when test="query != null and query.sortBy == 'status'">o.status</when>
+            <when test="query != null and query.sortBy == 'id'">o.id</when>
+            <otherwise>o.create_time</otherwise>
+        </choose>
+        <choose>
+            <when test="query != null and query.sortDirection == 'asc'">asc</when>
+            <otherwise>desc</otherwise>
+        </choose>
+    </select>
+
+    <select id="selectScopedDetail" resultType="com.ruoyi.lab.vo.RepairOrderVo">
+        select <include refid="RepairViewColumns" />
+        from lab_repair_order o
+        join lab_device d on d.id = o.device_id and d.del_flag = '0'
+        where o.id = #{orderId} and o.del_flag = '0'
+        <include refid="RepairScopePredicate" />
+    </select>
+</mapper>

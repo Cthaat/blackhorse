@@ -3,16 +3,14 @@ package com.ruoyi.lab.service.impl;
 import java.util.Objects;
 import com.ruoyi.lab.domain.DeviceStatus;
 import com.ruoyi.lab.domain.LabDevice;
-import com.ruoyi.lab.domain.LabLaboratory;
-import com.ruoyi.lab.domain.LaboratoryStatus;
 import com.ruoyi.lab.dto.DeviceStatusCommandDto;
 import com.ruoyi.lab.exception.LabBusinessException;
 import com.ruoyi.lab.exception.LabErrorCode;
 import com.ruoyi.lab.mapper.LabDeviceMapper;
-import com.ruoyi.lab.mapper.LabLaboratoryMapper;
 import com.ruoyi.lab.security.LabDataScope;
 import com.ruoyi.lab.security.LabDataScopeService;
 import com.ruoyi.lab.service.DeviceStatusCommandService;
+import com.ruoyi.lab.service.DeviceStatusTransitionGuard;
 import com.ruoyi.lab.service.LabStatusHistoryService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,18 +22,18 @@ public class DeviceStatusCommandServiceImpl implements DeviceStatusCommandServic
     private static final String OBJECT_TYPE = "DEVICE";
 
     private final LabDeviceMapper deviceMapper;
-    private final LabLaboratoryMapper laboratoryMapper;
     private final LabDataScopeService dataScopeService;
     private final LabStatusHistoryService historyService;
+    private final DeviceStatusTransitionGuard transitionGuard;
 
     public DeviceStatusCommandServiceImpl(LabDeviceMapper deviceMapper,
-            LabLaboratoryMapper laboratoryMapper, LabDataScopeService dataScopeService,
-            LabStatusHistoryService historyService)
+            LabDataScopeService dataScopeService, LabStatusHistoryService historyService,
+            DeviceStatusTransitionGuard transitionGuard)
     {
         this.deviceMapper = deviceMapper;
-        this.laboratoryMapper = laboratoryMapper;
         this.dataScopeService = dataScopeService;
         this.historyService = historyService;
+        this.transitionGuard = transitionGuard;
     }
 
     @Override
@@ -79,22 +77,7 @@ public class DeviceStatusCommandServiceImpl implements DeviceStatusCommandServic
         {
             throw new LabBusinessException(LabErrorCode.LAB_ILLEGAL_STATE_TRANSITION, "设备状态变更不合法");
         }
-        if (current == DeviceStatus.DISABLED && target == DeviceStatus.AVAILABLE)
-        {
-            LabLaboratory laboratory = laboratoryMapper.selectByIdForUpdate(locked.getLaboratoryId());
-            if (laboratory == null)
-            {
-                throw new LabBusinessException(LabErrorCode.RESOURCE_NOT_FOUND, "实验室不存在");
-            }
-            if (scope.restricted() && !scope.laboratoryIds().contains(laboratory.getId()))
-            {
-                throw outOfScope();
-            }
-            if (laboratory.getStatus() != LaboratoryStatus.ENABLED)
-            {
-                throw new LabBusinessException(LabErrorCode.LAB_LABORATORY_DISABLED, "实验室已停用");
-            }
-        }
+        transitionGuard.assertNoOperationalBlocker(locked, target);
 
         if (deviceMapper.updateStatusConditionally(deviceId, current.name(), target.name()) != 1)
         {

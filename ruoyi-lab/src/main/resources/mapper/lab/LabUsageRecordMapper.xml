@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.lab.mapper.LabUsageRecordMapper">
+
+    <resultMap id="LabUsageRecordResult" type="com.ruoyi.lab.domain.LabUsageRecord">
+        <id property="id" column="id" />
+        <result property="reservationId" column="reservation_id" />
+        <result property="deviceId" column="device_id" />
+        <result property="userId" column="user_id" />
+        <result property="checkoutOperatorId" column="checkout_operator_id" />
+        <result property="checkedOutAt" column="checked_out_at" />
+        <result property="checkoutNote" column="checkout_note" />
+        <result property="returnedAt" column="returned_at" />
+        <result property="returnOperatorId" column="return_operator_id" />
+        <result property="returnCondition" column="return_condition" />
+        <result property="returnNote" column="return_note" />
+        <result property="repairOrderId" column="repair_order_id" />
+        <result property="overdueMinutes" column="overdue_minutes" />
+        <result property="version" column="version" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="delFlag" column="del_flag" />
+    </resultMap>
+
+    <sql id="UsageColumns">
+        id, reservation_id, device_id, user_id, checkout_operator_id,
+        checked_out_at, checkout_note, returned_at, return_operator_id,
+        return_condition, return_note, repair_order_id, overdue_minutes,
+        version, create_by, create_time, update_by, update_time, del_flag
+    </sql>
+
+    <sql id="UsageViewColumns">
+        u.id as id, u.reservation_id as reservationId, u.device_id as deviceId,
+        r.reservation_no as reservationNo, d.asset_no as assetNo,
+        d.name as deviceName, u.checked_out_at as checkedOutAt,
+        u.returned_at as returnedAt, u.return_condition as returnCondition
+    </sql>
+
+    <sql id="UsageDetailColumns">
+        u.id as id, u.reservation_id as reservationId, u.device_id as deviceId,
+        u.user_id as userId, u.repair_order_id as repairOrderId,
+        r.reservation_no as reservationNo, d.asset_no as assetNo,
+        d.name as deviceName, u.checked_out_at as checkedOutAt,
+        u.checkout_note as checkoutNote, u.returned_at as returnedAt,
+        u.return_condition as returnCondition, u.return_note as returnNote
+    </sql>
+
+    <sql id="UsageScopePredicate">
+        <choose>
+            <when test="studentOnly">
+                and u.user_id = #{currentUserId}
+            </when>
+            <when test="scope != null and scope.allLaboratories">
+                <!-- unrestricted management scope -->
+            </when>
+            <when test="scope != null and scope.restricted() and scope.laboratoryIds != null and !scope.laboratoryIds.isEmpty()">
+                and d.laboratory_id in
+                <foreach collection="scope.laboratoryIds" item="labId" open="(" separator="," close=")">
+                    #{labId}
+                </foreach>
+            </when>
+            <otherwise>
+                and 1 = 0
+            </otherwise>
+        </choose>
+    </sql>
+
+    <select id="selectActiveById" resultMap="LabUsageRecordResult">
+        select <include refid="UsageColumns" />
+        from lab_usage_record
+        where id = #{usageId} and del_flag = '0'
+    </select>
+
+    <select id="selectByReservationId" resultMap="LabUsageRecordResult">
+        select <include refid="UsageColumns" />
+        from lab_usage_record
+        where reservation_id = #{reservationId} and del_flag = '0'
+    </select>
+
+    <select id="selectOpenUsageForUpdate" resultMap="LabUsageRecordResult">
+        select <include refid="UsageColumns" />
+        from lab_usage_record
+        where id = #{usageId} and returned_at is null and del_flag = '0'
+        for update
+    </select>
+
+    <select id="selectUnreturnedIdsByDeviceIdForUpdate" resultType="long">
+        select id from lab_usage_record
+        where device_id = #{deviceId} and returned_at is null and del_flag = '0'
+        order by id for update
+    </select>
+
+    <update id="closeConditionally">
+        update lab_usage_record
+        set returned_at = #{returnedAt}, return_operator_id = #{operatorId},
+            return_condition = #{condition}, return_note = #{note},
+            overdue_minutes = #{overdueMinutes}, update_by = #{operatorName},
+            update_time = #{returnedAt}, version = version + 1
+        where id = #{usageId} and returned_at is null and del_flag = '0'
+    </update>
+
+    <update id="linkRepairOrderConditionally">
+        update lab_usage_record
+        set repair_order_id = #{repairOrderId}, update_by = #{operatorName},
+            update_time = #{now}, version = version + 1
+        where id = #{usageId} and repair_order_id is null and del_flag = '0'
+    </update>
+
+    <select id="selectScopedList" resultType="com.ruoyi.lab.vo.UsageRecordVo">
+        select <include refid="UsageViewColumns" />
+        from lab_usage_record u
+        join lab_reservation r on r.id = u.reservation_id and r.del_flag = '0'
+        join lab_device d on d.id = u.device_id and d.del_flag = '0'
+        where u.del_flag = '0'
+        <include refid="UsageScopePredicate" />
+        <if test="query != null and query.reservationNo != null and query.reservationNo != ''">
+            and r.reservation_no = #{query.reservationNo}
+        </if>
+        <if test="query != null and query.assetNo != null and query.assetNo != ''">
+            and d.asset_no = #{query.assetNo}
+        </if>
+        <if test="query != null and query.returnCondition != null">
+            and u.return_condition = #{query.returnCondition}
+        </if>
+        <if test="query != null and query.checkedOutFrom != null">
+            and u.checked_out_at &gt;= #{query.checkedOutFrom}
+        </if>
+        <if test="query != null and query.checkedOutTo != null">
+            and u.checked_out_at &lt; #{query.checkedOutTo}
+        </if>
+        order by
+        <choose>
+            <when test="query != null and query.sortBy == 'reservationNo'">r.reservation_no</when>
+            <when test="query != null and query.sortBy == 'assetNo'">d.asset_no</when>
+            <when test="query != null and query.sortBy == 'checkedOutAt'">u.checked_out_at</when>
+            <when test="query != null and query.sortBy == 'returnedAt'">u.returned_at</when>
+            <otherwise>u.id</otherwise>
+        </choose>
+        <choose>
+            <when test="query != null and query.sortDirection == 'asc'">asc</when>
+            <otherwise>desc</otherwise>
+        </choose>
+    </select>
+
+    <select id="selectScopedDetail" resultType="com.ruoyi.lab.vo.UsageRecordDetailVo">
+        select <include refid="UsageDetailColumns" />
+        from lab_usage_record u
+        join lab_reservation r on r.id = u.reservation_id and r.del_flag = '0'
+        join lab_device d on d.id = u.device_id and d.del_flag = '0'
+        where u.id = #{usageId} and u.del_flag = '0'
+        <include refid="UsageScopePredicate" />
+    </select>
+</mapper>
