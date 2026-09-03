@@ -1,0 +1,37 @@
+package com.ruoyi.lab.service.impl;
+
+import java.time.LocalDateTime;
+import com.ruoyi.lab.exception.LabBusinessException;
+import com.ruoyi.lab.exception.LabErrorCode;
+import com.ruoyi.lab.mapper.LabHazardMapper;
+import com.ruoyi.lab.service.HazardLifecycleService;
+import com.ruoyi.lab.service.LabSystemOperator;
+import com.ruoyi.lab.service.LabSystemOperatorProvider;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class HazardLifecycleServiceImpl implements HazardLifecycleService
+{
+    private final LabHazardMapper hazardMapper;
+    private final LabSystemOperatorProvider operatorProvider;
+
+    public HazardLifecycleServiceImpl(LabHazardMapper hazardMapper,
+            LabSystemOperatorProvider operatorProvider)
+    {
+        this.hazardMapper = hazardMapper;
+        this.operatorProvider = operatorProvider;
+    }
+
+    @Override
+    @Transactional
+    public int markOverdue(LocalDateTime now, int batchSize)
+    {
+        LabSystemOperator operator = operatorProvider.requiredOperator();
+        if (now == null || batchSize < 1 || batchSize > 500)
+        {
+            throw new LabBusinessException(LabErrorCode.VALIDATION_ERROR, "隐患超期批处理参数无效");
+        }
+        return hazardMapper.markOverdue(now, batchSize, operator.userName());
+    }
+}

@@ -1,12 +1,8 @@
 package com.ruoyi.lab.service.impl;
 
 import com.ruoyi.lab.service.LabHazardBlocker;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.stereotype.Service;
 
-/** M3 fallback used before the hazard tables are introduced. */
-@Service
-@ConditionalOnMissingBean(LabHazardBlocker.class)
+/** Legacy fallback retained only for explicit isolated unit construction. */
 public class NoRecordedHazardBlocker implements LabHazardBlocker
 {
     @Override

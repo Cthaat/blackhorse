@@ -5,11 +5,15 @@ import java.util.Locale;
 import com.ruoyi.lab.domain.LabDevice;
 import com.ruoyi.lab.domain.LabLaboratory;
 import com.ruoyi.lab.domain.LabQualification;
+import com.ruoyi.lab.domain.LabHazard;
+import com.ruoyi.lab.domain.LabRectification;
 import com.ruoyi.lab.exception.LabBusinessException;
 import com.ruoyi.lab.exception.LabErrorCode;
 import com.ruoyi.lab.mapper.LabDeviceMapper;
 import com.ruoyi.lab.mapper.LabLaboratoryMapper;
 import com.ruoyi.lab.mapper.LabQualificationMapper;
+import com.ruoyi.lab.mapper.LabHazardMapper;
+import com.ruoyi.lab.mapper.LabRectificationMapper;
 import com.ruoyi.lab.security.LabDataScope;
 import com.ruoyi.lab.security.LabDataScopeService;
 import com.ruoyi.lab.security.LabObjectPermissionService;
@@ -24,16 +28,21 @@ public class LabAttachmentObjectAuthorizer
     private final LabLaboratoryMapper laboratoryMapper;
     private final LabDeviceMapper deviceMapper;
     private final LabQualificationMapper qualificationMapper;
+    private final LabHazardMapper hazardMapper;
+    private final LabRectificationMapper rectificationMapper;
 
     public LabAttachmentObjectAuthorizer(LabObjectPermissionService objectPermissionService,
             LabDataScopeService dataScopeService, LabLaboratoryMapper laboratoryMapper,
-            LabDeviceMapper deviceMapper, LabQualificationMapper qualificationMapper)
+            LabDeviceMapper deviceMapper, LabQualificationMapper qualificationMapper,
+            LabHazardMapper hazardMapper, LabRectificationMapper rectificationMapper)
     {
         this.objectPermissionService = objectPermissionService;
         this.dataScopeService = dataScopeService;
         this.laboratoryMapper = laboratoryMapper;
         this.deviceMapper = deviceMapper;
         this.qualificationMapper = qualificationMapper;
+        this.hazardMapper = hazardMapper;
+        this.rectificationMapper = rectificationMapper;
     }
 
     public String normalizeBusinessType(String businessType)
@@ -43,7 +52,7 @@ public class LabAttachmentObjectAuthorizer
             throw invalidType();
         }
         String normalized = businessType.trim().toUpperCase(Locale.ROOT);
-        if (!List.of("LABORATORY", "DEVICE", "QUALIFICATION").contains(normalized))
+        if (!List.of("LABORATORY", "DEVICE", "QUALIFICATION", "RECTIFICATION").contains(normalized))
         {
             throw invalidType();
         }
@@ -57,6 +66,7 @@ public class LabAttachmentObjectAuthorizer
             case "LABORATORY" -> objectPermissionService.assertLaboratoryReadable(businessId);
             case "DEVICE" -> objectPermissionService.assertDeviceReadable(businessId);
             case "QUALIFICATION" -> assertQualificationReadable(businessId);
+            case "RECTIFICATION" -> assertRectificationReadable(businessId);
             default -> throw invalidType();
         }
     }
@@ -80,6 +90,7 @@ public class LabAttachmentObjectAuthorizer
                 requireExists(qualification);
                 assertQualificationManageable(businessId);
             }
+            case "RECTIFICATION" -> assertRectificationManageable(businessId);
             default -> throw invalidType();
         }
     }
@@ -108,6 +119,41 @@ public class LabAttachmentObjectAuthorizer
         {
             throw new LabBusinessException(LabErrorCode.LAB_OUT_OF_DATA_SCOPE,
                     "对象不在当前数据范围内");
+        }
+    }
+
+    private void assertRectificationReadable(long rectificationId)
+    {
+        LabRectification round = rectificationMapper.selectById(rectificationId);
+        if (round == null || !"0".equals(round.getDelFlag()))
+        {
+            throw notFound();
+        }
+        LabHazard hazard = hazardMapper.selectActiveById(round.getHazardId());
+        requireExists(hazard);
+        if (hazard.getTargetType().name().equals("LABORATORY"))
+        {
+            objectPermissionService.assertLaboratoryReadable(hazard.getTargetId());
+        }
+        else
+        {
+            objectPermissionService.assertDeviceReadable(hazard.getTargetId());
+        }
+    }
+
+    private void assertRectificationManageable(long rectificationId)
+    {
+        LabRectification round = rectificationMapper.selectById(rectificationId);
+        if (round == null || !"0".equals(round.getDelFlag()))
+        {
+            throw notFound();
+        }
+        assertRectificationReadable(rectificationId);
+        if (round.getSubmitterId() == null
+                || round.getSubmitterId() != objectPermissionService.currentUserId()
+                || round.getReviewResult() != null)
+        {
+            throw new LabBusinessException(LabErrorCode.ACCESS_DENIED, "当前用户无权管理整改附件");
         }
     }
 

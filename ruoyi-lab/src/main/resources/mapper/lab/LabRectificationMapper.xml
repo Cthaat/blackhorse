@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.lab.mapper.LabRectificationMapper">
+    <resultMap id="RoundResult" type="com.ruoyi.lab.domain.LabRectification">
+        <id property="id" column="id" /><result property="hazardId" column="hazard_id" />
+        <result property="roundNo" column="round_no" /><result property="submitterId" column="submitter_id" />
+        <result property="description" column="description" /><result property="submittedAt" column="submitted_at" />
+        <result property="reviewerId" column="reviewer_id" /><result property="reviewResult" column="review_result" />
+        <result property="reviewReason" column="review_reason" /><result property="reviewedAt" column="reviewed_at" />
+        <result property="createTime" column="create_time" /><result property="updateTime" column="update_time" />
+        <result property="version" column="version" /><result property="delFlag" column="del_flag" />
+    </resultMap>
+    <select id="selectForUpdate" resultMap="RoundResult">select * from lab_rectification where id=#{rectificationId} and del_flag='0' for update</select>
+    <select id="selectByHazard" resultMap="RoundResult">select * from lab_rectification where hazard_id=#{hazardId} and del_flag='0' order by round_no</select>
+    <select id="selectMaxRound" resultType="int">select coalesce(max(round_no),0) from lab_rectification where hazard_id=#{hazardId} and del_flag='0'</select>
+    <update id="reviewConditionally">update lab_rectification set reviewer_id=#{reviewerId},review_result=#{result},review_reason=#{reason},reviewed_at=#{reviewedAt},update_time=#{reviewedAt},version=version+1 where id=#{rectificationId} and reviewer_id is null and version=#{expectedVersion} and del_flag='0'</update>
+</mapper>

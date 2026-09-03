@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.lab.mapper.LabHazardMapper">
+    <resultMap id="HazardResult" type="com.ruoyi.lab.domain.LabHazard">
+        <id property="id" column="id" /><result property="hazardNo" column="hazard_no" />
+        <result property="sourceItemId" column="source_item_id" /><result property="relatedHazardId" column="related_hazard_id" />
+        <result property="targetType" column="target_type" /><result property="targetId" column="target_id" />
+        <result property="severity" column="severity" /><result property="ownerId" column="owner_id" />
+        <result property="deadline" column="deadline" /><result property="requirements" column="requirements" />
+        <result property="status" column="status" /><result property="overdueFlag" column="overdue_flag" />
+        <result property="overdueSetAt" column="overdue_set_at" /><result property="overdueEventVersion" column="overdue_event_version" />
+        <result property="version" column="version" /><result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" /><result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" /><result property="delFlag" column="del_flag" />
+    </resultMap>
+    <sql id="Columns">h.id,h.hazard_no,h.source_item_id,h.related_hazard_id,h.target_type,h.target_id,
+        h.severity,h.owner_id,h.deadline,h.requirements,h.status,h.overdue_flag,h.overdue_set_at,h.overdue_event_version,h.version,h.create_by,
+        h.create_time,h.update_by,h.update_time,h.del_flag</sql>
+    <select id="selectActiveById" resultMap="HazardResult">select <include refid="Columns" /> from lab_hazard h where h.id=#{hazardId} and h.del_flag='0'</select>
+    <select id="selectForUpdate" resultMap="HazardResult">select <include refid="Columns" /> from lab_hazard h where h.id=#{hazardId} and h.del_flag='0' for update</select>
+    <select id="selectBySourceItem" resultMap="HazardResult">select <include refid="Columns" /> from lab_hazard h where h.source_item_id=#{sourceItemId} and h.del_flag='0' limit 1</select>
+    <select id="selectListByScope" resultMap="HazardResult">
+        select distinct <include refid="Columns" /> from lab_hazard h
+        left join lab_device d on h.target_type='DEVICE' and d.id=h.target_id and d.del_flag='0'
+        where h.del_flag='0'
+        <choose><when test="scope != null and scope.allLaboratories"><!-- unrestricted --></when>
+        <when test="scope != null and scope.restricted() and scope.laboratoryIds != null and !scope.laboratoryIds.isEmpty()">
+            and ((h.target_type='LABORATORY' and h.target_id in <foreach collection="scope.laboratoryIds" item="id" open="(" separator="," close=")">#{id}</foreach>)
+            or (h.target_type='DEVICE' and d.laboratory_id in <foreach collection="scope.laboratoryIds" item="id" open="(" separator="," close=")">#{id}</foreach>))
+        </when><otherwise>and 1=0</otherwise></choose>
+        <if test="ownerId != null">and h.owner_id=#{ownerId}</if><if test="status != null">and h.status=#{status}</if><if test="severity != null">and h.severity=#{severity}</if>
+        order by h.create_time desc
+    </select>
+    <select id="selectDeviceIdsByLaboratory" resultType="long">select id from lab_device where laboratory_id=#{laboratoryId} and del_flag='0' order by id</select>
+    <select id="selectOpenMajorHazardIdsForDeviceForUpdate" resultType="long">
+        select h.id from lab_hazard h join lab_device d on d.id=#{deviceId} and d.del_flag='0'
+        where h.del_flag='0' and h.severity='MAJOR' and h.status in ('PENDING_RECTIFICATION','RECTIFYING','PENDING_REVIEW')
+        and ((h.target_type='DEVICE' and h.target_id=d.id) or (h.target_type='LABORATORY' and h.target_id=d.laboratory_id))
+        order by h.id for update
+    </select>
+    <update id="updateStatusConditionally">update lab_hazard set status=#{target},update_by=#{updateBy},update_time=#{updateTime},version=version+1 where id=#{hazardId} and status=#{expected} and del_flag='0'</update>
+    <update id="markOverdue">update lab_hazard set overdue_flag='1',overdue_set_at=#{now},overdue_event_version=overdue_event_version+1,update_by=#{updateBy},update_time=#{now},version=version+1 where id in (select id from (select id from lab_hazard where deadline &lt; #{now} and status &lt;&gt; 'CLOSED' and overdue_flag='0' and del_flag='0' order by id limit #{batchSize}) due)</update>
+    <select id="countOpenUsageForDevice" resultType="int">select count(1) from lab_usage_record where device_id=#{deviceId} and returned_at is null and del_flag='0'</select>
+    <select id="countOpenRepairForDevice" resultType="int">select count(1) from lab_repair_order where device_id=#{deviceId} and status in ('WAIT_ASSIGN','WAIT_REPAIR','IN_PROGRESS','WAIT_ACCEPTANCE') and del_flag='0'</select>
+</mapper>
