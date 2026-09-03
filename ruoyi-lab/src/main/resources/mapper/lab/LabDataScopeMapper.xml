@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.lab.mapper.LabDataScopeMapper">
+
+    <select id="hasAllLaboratoryScope" resultType="boolean">
+        select exists (
+            select 1
+            from sys_user_role ur
+            inner join sys_role r on r.role_id = ur.role_id
+            inner join sys_user u on u.user_id = ur.user_id
+            where ur.user_id = #{userId}
+              and r.data_scope = '1'
+              and r.status = '0'
+              and r.del_flag = '0'
+              and u.status = '0'
+              and u.del_flag = '0'
+        )
+    </select>
+
+    <select id="selectScopedLaboratoryIds" resultType="long">
+        select distinct l.id
+        from lab_laboratory l
+        where l.del_flag = '0'
+          and exists (
+              select 1
+              from sys_user_role ur
+              inner join sys_role r on r.role_id = ur.role_id
+              inner join sys_user u on u.user_id = ur.user_id
+              where ur.user_id = #{userId}
+                and r.status = '0'
+                and r.del_flag = '0'
+                and u.status = '0'
+                and u.del_flag = '0'
+                and (
+                    r.data_scope = '1'
+                    or (r.data_scope = '2' and exists (
+                        select 1
+                        from sys_role_dept rd
+                        where rd.role_id = r.role_id
+                          and rd.dept_id = l.dept_id
+                    ))
+                    or (r.data_scope = '3' and l.dept_id = u.dept_id)
+                    or (r.data_scope = '4' and exists (
+                        select 1
+                        from sys_dept scoped_dept
+                        where scoped_dept.dept_id = l.dept_id
+                          and scoped_dept.status = '0'
+                          and scoped_dept.del_flag = '0'
+                          and (scoped_dept.dept_id = u.dept_id
+                              or find_in_set(u.dept_id, scoped_dept.ancestors) > 0)
+                    ))
+                    or (r.data_scope = '5' and l.manager_id = #{userId})
+                )
+          )
+        order by l.id
+    </select>
+
+</mapper>

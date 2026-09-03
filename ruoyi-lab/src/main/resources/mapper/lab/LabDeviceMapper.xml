@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.lab.mapper.LabDeviceMapper">
+
+    <resultMap id="LabDeviceResult" type="com.ruoyi.lab.domain.LabDevice">
+        <id property="id" column="id" />
+        <result property="assetNo" column="asset_no" />
+        <result property="laboratoryId" column="laboratory_id" />
+        <result property="name" column="name" />
+        <result property="categoryCode" column="category_code" />
+        <result property="model" column="model" />
+        <result property="riskLevel" column="risk_level" />
+        <result property="location" column="location" />
+        <result property="managerId" column="manager_id" />
+        <result property="description" column="description" />
+        <result property="status" column="status" />
+        <result property="version" column="version" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="delFlag" column="del_flag" />
+    </resultMap>
+
+    <sql id="DeviceColumns">
+        d.id, d.asset_no, d.laboratory_id, d.name, d.category_code, d.model,
+        d.risk_level, d.location, d.manager_id, d.description, d.status,
+        d.version, d.create_by, d.create_time, d.update_by, d.update_time,
+        d.del_flag
+    </sql>
+
+    <select id="selectByIdForUpdate" resultMap="LabDeviceResult">
+        select <include refid="DeviceColumns" />
+        from lab_device d
+        where d.id = #{deviceId}
+          and d.del_flag = '0'
+        for update
+    </select>
+
+    <update id="updateStatusConditionally">
+        update lab_device
+        set status = #{target},
+            version = version + 1
+        where id = #{deviceId}
+          and status = #{expected}
+          and del_flag = '0'
+    </update>
+
+</mapper>
