@@ -6,14 +6,19 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.ruoyi.lab.serializer.LabBusinessId;
+import com.ruoyi.lab.serializer.LabBusinessTime;
 
 @TableName(value = "lab_inspection_item", autoResultMap = true)
 public class LabInspectionItem implements Serializable
 {
     private static final long serialVersionUID = 1L;
     @TableId(value = "id", type = IdType.AUTO)
+    @LabBusinessId
     private Long id;
+    @LabBusinessId
     private Long taskId;
+    @LabBusinessId
     private Long planItemId;
     private String itemCodeSnapshot;
     private String contentSnapshot;
@@ -22,11 +27,16 @@ public class LabInspectionItem implements Serializable
     private String description;
     private HazardSeverity severity;
     private HazardTargetType targetType;
+    @LabBusinessId
     private Long targetId;
+    @LabBusinessId
     private Long inspectedBy;
+    @LabBusinessTime
     private LocalDateTime inspectedAt;
     private Integer version;
+    @LabBusinessTime
     private LocalDateTime createTime;
+    @LabBusinessTime
     private LocalDateTime updateTime;
     @TableLogic(value = "0", delval = "2")
     private String delFlag;

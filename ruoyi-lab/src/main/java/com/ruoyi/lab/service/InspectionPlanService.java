@@ -4,6 +4,7 @@ import java.util.List;
 import com.ruoyi.lab.domain.InspectionPlanStatus;
 import com.ruoyi.lab.domain.LabInspectionPlan;
 import com.ruoyi.lab.dto.InspectionPlanCommand;
+import com.ruoyi.lab.vo.InspectionPlanDetailVo;
 
 public interface InspectionPlanService
 {
@@ -13,5 +14,5 @@ public interface InspectionPlanService
     void enable(Long planId, Long actorId, String actorName);
     void disable(Long planId, Long actorId, String actorName);
     List<LabInspectionPlan> list(InspectionPlanStatus status, String keyword);
-    LabInspectionPlan get(Long planId);
+    InspectionPlanDetailVo get(Long planId);
 }

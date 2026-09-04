@@ -105,7 +105,122 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <select id="countUnreadNotifications" resultType="long">
         select count(1) from lab_notification
-        where receiver_id = #{userId} and read_at is null
+        where receiver_id = #{userId} and delivery_status = 'SENT' and read_at is null
+    </select>
+
+    <select id="countDeviceStates" resultType="com.ruoyi.lab.vo.LabMetricVo">
+        select d.status as code, count(1) as value
+        from lab_device d
+        where d.del_flag = '0'
+        <choose>
+            <when test="scope != null and scope.allLaboratories"><!-- unrestricted --></when>
+            <when test="scope != null and scope.restricted() and scope.laboratoryIds != null and !scope.laboratoryIds.isEmpty()">
+                and d.laboratory_id in
+                <foreach collection="scope.laboratoryIds" item="laboratoryId" open="(" separator="," close=")">
+                    #{laboratoryId}
+                </foreach>
+            </when>
+            <otherwise>and 1 = 0</otherwise>
+        </choose>
+        group by d.status
+        order by d.status
+    </select>
+
+    <select id="countReservationStates" resultType="com.ruoyi.lab.vo.LabMetricVo">
+        select r.status as code, count(1) as value
+        from lab_reservation r
+        join lab_device d on d.id = r.device_id and d.del_flag = '0'
+        where r.del_flag = '0'
+          and r.start_time &gt;= #{windowStart}
+          and r.start_time &lt; #{windowEnd}
+          and (
+              r.applicant_id = #{userId}
+              <choose>
+                  <when test="scope != null and scope.allLaboratories">or 1 = 1</when>
+                  <when test="scope != null and scope.restricted() and scope.laboratoryIds != null and !scope.laboratoryIds.isEmpty()">
+                      or d.laboratory_id in
+                      <foreach collection="scope.laboratoryIds" item="laboratoryId" open="(" separator="," close=")">
+                          #{laboratoryId}
+                      </foreach>
+                  </when>
+              </choose>
+          )
+        group by r.status
+        order by r.status
+    </select>
+
+    <select id="sumUsageMinutes" resultType="long">
+        select coalesce(sum(greatest(timestampdiff(minute,
+            greatest(u.checked_out_at, #{windowStart}),
+            least(coalesce(u.returned_at, #{windowEnd}), #{windowEnd})), 0)), 0)
+        from lab_usage_record u
+        join lab_device d on d.id = u.device_id and d.del_flag = '0'
+        where u.del_flag = '0'
+          and u.checked_out_at &lt; #{windowEnd}
+          and (u.returned_at is null or u.returned_at &gt; #{windowStart})
+          and (
+              u.user_id = #{userId}
+              <choose>
+                  <when test="scope != null and scope.allLaboratories">or 1 = 1</when>
+                  <when test="scope != null and scope.restricted() and scope.laboratoryIds != null and !scope.laboratoryIds.isEmpty()">
+                      or d.laboratory_id in
+                      <foreach collection="scope.laboratoryIds" item="laboratoryId" open="(" separator="," close=")">
+                          #{laboratoryId}
+                      </foreach>
+                  </when>
+              </choose>
+          )
+    </select>
+
+    <select id="countRepairStates" resultType="com.ruoyi.lab.vo.LabMetricVo">
+        select repair.status as code, count(1) as value
+        from lab_repair_order repair
+        join lab_device d on d.id = repair.device_id and d.del_flag = '0'
+        where repair.del_flag = '0'
+          and repair.create_time &gt;= #{windowStart}
+          and repair.create_time &lt; #{windowEnd}
+          and (
+              repair.reporter_id = #{userId} or repair.assignee_id = #{userId}
+              <choose>
+                  <when test="scope != null and scope.allLaboratories">or 1 = 1</when>
+                  <when test="scope != null and scope.restricted() and scope.laboratoryIds != null and !scope.laboratoryIds.isEmpty()">
+                      or d.laboratory_id in
+                      <foreach collection="scope.laboratoryIds" item="laboratoryId" open="(" separator="," close=")">
+                          #{laboratoryId}
+                      </foreach>
+                  </when>
+              </choose>
+          )
+        group by repair.status
+        order by repair.status
+    </select>
+
+    <select id="countHazardStates" resultType="com.ruoyi.lab.vo.LabMetricVo">
+        select hazard.status as code, count(1) as value
+        from lab_hazard hazard
+        left join lab_device d on hazard.target_type = 'DEVICE'
+                              and d.id = hazard.target_id and d.del_flag = '0'
+        where hazard.del_flag = '0'
+          and hazard.create_time &gt;= #{windowStart}
+          and hazard.create_time &lt; #{windowEnd}
+          and (
+              hazard.owner_id = #{userId}
+              <choose>
+                  <when test="scope != null and scope.allLaboratories">or 1 = 1</when>
+                  <when test="scope != null and scope.restricted() and scope.laboratoryIds != null and !scope.laboratoryIds.isEmpty()">
+                      or (hazard.target_type = 'LABORATORY' and hazard.target_id in
+                          <foreach collection="scope.laboratoryIds" item="laboratoryId" open="(" separator="," close=")">
+                              #{laboratoryId}
+                          </foreach>)
+                      or (hazard.target_type = 'DEVICE' and d.laboratory_id in
+                          <foreach collection="scope.laboratoryIds" item="laboratoryId" open="(" separator="," close=")">
+                              #{laboratoryId}
+                          </foreach>)
+                  </when>
+              </choose>
+          )
+        group by hazard.status
+        order by hazard.status
     </select>
 
 </mapper>

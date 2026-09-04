@@ -1,28 +1,33 @@
 package com.ruoyi.lab.vo;
 
 import java.time.LocalDateTime;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.ruoyi.lab.domain.LabQualification;
 import com.ruoyi.lab.domain.QualificationComputedStatus;
 import com.ruoyi.lab.domain.QualificationScopeType;
+import com.ruoyi.lab.serializer.LabBusinessId;
+import com.ruoyi.lab.serializer.LabBusinessTime;
 
 /** Current read representation of a qualification. */
 public class QualificationVo
 {
-    @JsonSerialize(using = ToStringSerializer.class)
+    @LabBusinessId
     private Long id;
-    @JsonSerialize(using = ToStringSerializer.class)
+    @LabBusinessId
     private Long userId;
     private QualificationScopeType scopeType;
     private String scopeId;
+    @LabBusinessTime
     private LocalDateTime validFrom;
+    @LabBusinessTime
     private LocalDateTime validUntil;
+    @LabBusinessTime
     private LocalDateTime revokedAt;
     private String revokeReason;
     private QualificationComputedStatus status;
     private Integer version;
+    @LabBusinessTime
     private LocalDateTime createTime;
+    @LabBusinessTime
     private LocalDateTime updateTime;
 
     public static QualificationVo from(LabQualification source, QualificationComputedStatus status)

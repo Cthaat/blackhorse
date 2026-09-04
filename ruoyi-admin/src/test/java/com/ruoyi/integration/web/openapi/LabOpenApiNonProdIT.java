@@ -48,6 +48,24 @@ import com.ruoyi.framework.security.handle.AuthenticationEntryPointImpl;
 import com.ruoyi.framework.security.handle.LogoutSuccessHandlerImpl;
 import com.ruoyi.framework.web.filter.TraceIdFilter;
 import com.ruoyi.framework.web.service.TokenService;
+import com.ruoyi.lab.service.AttachmentService;
+import com.ruoyi.lab.service.DashboardService;
+import com.ruoyi.lab.service.DeviceService;
+import com.ruoyi.lab.service.DeviceStatusCommandService;
+import com.ruoyi.lab.service.HazardService;
+import com.ruoyi.lab.service.InspectionPlanService;
+import com.ruoyi.lab.service.InspectionTaskService;
+import com.ruoyi.lab.service.LaboratoryService;
+import com.ruoyi.lab.service.NotificationService;
+import com.ruoyi.lab.service.QualificationService;
+import com.ruoyi.lab.service.RectificationService;
+import com.ruoyi.lab.service.RepairOrderService;
+import com.ruoyi.lab.service.RepairQueryService;
+import com.ruoyi.lab.service.ReservationCommandService;
+import com.ruoyi.lab.service.ReservationQueryService;
+import com.ruoyi.lab.service.StatusHistoryQueryService;
+import com.ruoyi.lab.service.UsageCommandService;
+import com.ruoyi.lab.service.UsageQueryService;
 import com.ruoyi.web.core.config.SwaggerConfig;
 import com.github.xiaoymin.knife4j.spring.extension.Knife4jOpenApiCustomizer;
 
@@ -85,6 +103,25 @@ class LabOpenApiNonProdIT
 
     @MockitoBean
     private PermitAllUrlProperties permitAllUrlProperties;
+
+    @MockitoBean private AttachmentService attachmentService;
+    @MockitoBean private DashboardService dashboardService;
+    @MockitoBean private DeviceService deviceService;
+    @MockitoBean private DeviceStatusCommandService deviceStatusCommandService;
+    @MockitoBean private HazardService hazardService;
+    @MockitoBean private InspectionPlanService inspectionPlanService;
+    @MockitoBean private InspectionTaskService inspectionTaskService;
+    @MockitoBean private LaboratoryService laboratoryService;
+    @MockitoBean private NotificationService notificationService;
+    @MockitoBean private QualificationService qualificationService;
+    @MockitoBean private RectificationService rectificationService;
+    @MockitoBean private RepairOrderService repairOrderService;
+    @MockitoBean private RepairQueryService repairQueryService;
+    @MockitoBean private ReservationCommandService reservationCommandService;
+    @MockitoBean private ReservationQueryService reservationQueryService;
+    @MockitoBean private StatusHistoryQueryService statusHistoryQueryService;
+    @MockitoBean private UsageCommandService usageCommandService;
+    @MockitoBean private UsageQueryService usageQueryService;
 
     @DynamicPropertySource
     static void configureProfileRoot(DynamicPropertyRegistry registry)
@@ -158,7 +195,9 @@ class LabOpenApiNonProdIT
         List<String> paths = new ArrayList<>();
         document.path("paths").fieldNames().forEachRemaining(paths::add);
         assertThat(paths).isNotEmpty().allMatch(path -> path.startsWith("/lab/"));
-        assertThat(paths).containsExactly("/lab/security-probe");
+        assertThat(paths).contains("/lab/security-probe", "/lab/laboratories",
+                "/lab/devices", "/lab/reservations", "/lab/repair-orders",
+                "/lab/inspection-plans", "/lab/hazards", "/lab/dashboard/summary");
 
         JsonNode securityScheme = document.path("components").path("securitySchemes").path("BearerAuth");
         assertThat(securityScheme.path("type").asText()).isEqualTo("http");
@@ -170,6 +209,12 @@ class LabOpenApiNonProdIT
         assertThat(getOperation.path("responses").has("401")).isTrue();
         assertThat(getOperation.path("responses").has("403")).isTrue();
         assertThat(document.path("components").path("schemas").has("ErrorResponse")).isTrue();
+
+        JsonNode reservationPost = document.path("paths").path("/lab/reservations").path("post");
+        assertThat(reservationPost.path("responses").has("400")).isTrue();
+        assertThat(reservationPost.path("responses").has("409")).isTrue();
+        assertThat(reservationPost.path("description").asText())
+                .contains("lab:reservation:apply");
 
         String description = document.path("info").path("description").asText();
         assertThat(description)

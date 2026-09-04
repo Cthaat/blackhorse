@@ -6,23 +6,33 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.ruoyi.lab.serializer.LabBusinessId;
+import com.ruoyi.lab.serializer.LabBusinessTime;
 
 @TableName(value = "lab_rectification", autoResultMap = true)
 public class LabRectification implements Serializable
 {
     private static final long serialVersionUID = 1L;
     @TableId(value = "id", type = IdType.AUTO)
+    @LabBusinessId
     private Long id;
+    @LabBusinessId
     private Long hazardId;
     private Integer roundNo;
+    @LabBusinessId
     private Long submitterId;
     private String description;
+    @LabBusinessTime
     private LocalDateTime submittedAt;
+    @LabBusinessId
     private Long reviewerId;
     private RectificationReviewResult reviewResult;
     private String reviewReason;
+    @LabBusinessTime
     private LocalDateTime reviewedAt;
+    @LabBusinessTime
     private LocalDateTime createTime;
+    @LabBusinessTime
     private LocalDateTime updateTime;
     private Integer version;
     @TableLogic(value = "0", delval = "2")

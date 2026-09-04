@@ -15,15 +15,19 @@ public interface LabHazardMapper extends BaseMapper<LabHazard>
     LabHazard selectForUpdate(@Param("hazardId") Long hazardId);
     LabHazard selectBySourceItem(@Param("sourceItemId") Long sourceItemId);
     List<LabHazard> selectListByScope(@Param("scope") LabDataScope scope,
-            @Param("ownerId") Long ownerId, @Param("status") HazardStatus status,
-            @Param("severity") HazardSeverity severity);
+            @Param("viewerId") Long viewerId, @Param("ownerId") Long ownerId,
+            @Param("status") HazardStatus status, @Param("severity") HazardSeverity severity);
     List<Long> selectDeviceIdsByLaboratory(@Param("laboratoryId") Long laboratoryId);
     List<Long> selectOpenMajorHazardIdsForDeviceForUpdate(@Param("deviceId") Long deviceId);
     int updateStatusConditionally(@Param("hazardId") Long hazardId,
             @Param("expected") String expected, @Param("target") String target,
             @Param("updateBy") String updateBy, @Param("updateTime") LocalDateTime updateTime);
-    int markOverdue(@Param("now") LocalDateTime now, @Param("batchSize") int batchSize,
-            @Param("updateBy") String updateBy);
+    List<LabHazard> selectOverdueCandidates(@Param("now") LocalDateTime now,
+            @Param("limit") int limit);
+    int markOneOverdue(@Param("hazardId") Long hazardId,
+            @Param("expectedVersion") Integer expectedVersion,
+            @Param("now") LocalDateTime now, @Param("updateBy") String updateBy);
+    List<LabHazard> selectUnreconciledOverdue(@Param("limit") int limit);
     int countOpenUsageForDevice(@Param("deviceId") Long deviceId);
     int countOpenRepairForDevice(@Param("deviceId") Long deviceId);
 }

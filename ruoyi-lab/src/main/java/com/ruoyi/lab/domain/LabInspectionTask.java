@@ -6,29 +6,42 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.ruoyi.lab.serializer.LabBusinessId;
+import com.ruoyi.lab.serializer.LabBusinessTime;
 
 @TableName(value = "lab_inspection_task", autoResultMap = true)
 public class LabInspectionTask implements Serializable
 {
     private static final long serialVersionUID = 1L;
     @TableId(value = "id", type = IdType.AUTO)
+    @LabBusinessId
     private Long id;
     private String taskNo;
+    @LabBusinessId
     private Long planId;
+    @LabBusinessId
     private Long laboratoryId;
+    @LabBusinessTime
     private LocalDateTime scheduledAt;
+    @LabBusinessTime
     private LocalDateTime deadlineAt;
+    @LabBusinessId
     private Long assigneeId;
     private InspectionTaskStatus status;
     private String overdueFlag;
+    @LabBusinessTime
     private LocalDateTime overdueSetAt;
     private Long overdueEventVersion;
+    @LabBusinessTime
     private LocalDateTime startedAt;
+    @LabBusinessTime
     private LocalDateTime completedAt;
     private Integer version;
     private String createBy;
+    @LabBusinessTime
     private LocalDateTime createTime;
     private String updateBy;
+    @LabBusinessTime
     private LocalDateTime updateTime;
     @TableLogic(value = "0", delval = "2")
     private String delFlag;

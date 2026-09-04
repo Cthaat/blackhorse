@@ -6,6 +6,7 @@ import java.util.UUID;
 import com.ruoyi.lab.domain.LabStatusHistory;
 import com.ruoyi.lab.exception.LabBusinessException;
 import com.ruoyi.lab.exception.LabErrorCode;
+import com.ruoyi.lab.event.LabNotificationEventPublisher;
 import com.ruoyi.lab.mapper.LabStatusHistoryMapper;
 import com.ruoyi.lab.service.LabStatusHistoryService;
 import org.slf4j.MDC;
@@ -19,11 +20,14 @@ public class LabStatusHistoryServiceImpl implements LabStatusHistoryService
     private static final String TRACE_ID_KEY = "traceId";
 
     private final LabStatusHistoryMapper historyMapper;
+    private final LabNotificationEventPublisher notificationEventPublisher;
     private final Clock clock;
 
-    public LabStatusHistoryServiceImpl(LabStatusHistoryMapper historyMapper, Clock clock)
+    public LabStatusHistoryServiceImpl(LabStatusHistoryMapper historyMapper,
+            LabNotificationEventPublisher notificationEventPublisher, Clock clock)
     {
         this.historyMapper = historyMapper;
+        this.notificationEventPublisher = notificationEventPublisher;
         this.clock = clock;
     }
 
@@ -56,6 +60,11 @@ public class LabStatusHistoryServiceImpl implements LabStatusHistoryService
         history.setCreateTime(LocalDateTime.now(clock));
         history.setDelFlag("0");
         historyMapper.insert(history);
+        if (history.getId() == null || history.getId() <= 0)
+        {
+            throw new LabBusinessException(LabErrorCode.INTERNAL_ERROR, "状态历史写入失败");
+        }
+        notificationEventPublisher.publishHistory(history.getId());
         return history.getId();
     }
 

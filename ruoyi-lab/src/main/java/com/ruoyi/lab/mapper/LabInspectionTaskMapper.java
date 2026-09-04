@@ -20,6 +20,10 @@ public interface LabInspectionTaskMapper extends BaseMapper<LabInspectionTask>
             @Param("startedAt") LocalDateTime startedAt, @Param("updateBy") String updateBy);
     int completeConditionally(@Param("taskId") Long taskId, @Param("expectedVersion") Integer version,
             @Param("completedAt") LocalDateTime completedAt, @Param("updateBy") String updateBy);
-    int markOverdue(@Param("now") LocalDateTime now, @Param("batchSize") int batchSize,
-            @Param("updateBy") String updateBy);
+    List<LabInspectionTask> selectOverdueCandidates(@Param("now") LocalDateTime now,
+            @Param("limit") int limit);
+    int markOneOverdue(@Param("taskId") Long taskId,
+            @Param("expectedVersion") Integer expectedVersion,
+            @Param("now") LocalDateTime now, @Param("updateBy") String updateBy);
+    List<LabInspectionTask> selectUnreconciledOverdue(@Param("limit") int limit);
 }

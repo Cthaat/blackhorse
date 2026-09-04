@@ -6,7 +6,7 @@ import com.ruoyi.lab.config.LabJobProperties;
 import com.ruoyi.lab.service.HazardLifecycleService;
 import com.ruoyi.lab.service.InspectionLifecycleService;
 import com.ruoyi.lab.service.InspectionScheduleService;
-import com.ruoyi.lab.service.NotificationDeliveryService;
+import com.ruoyi.lab.service.LabNotificationCompensationService;
 import com.ruoyi.lab.service.ReservationLifecycleService;
 import org.springframework.stereotype.Component;
 
@@ -20,7 +20,7 @@ public class LabLifecycleJob
     private final InspectionScheduleService inspectionScheduleService;
     private final InspectionLifecycleService inspectionLifecycleService;
     private final HazardLifecycleService hazardLifecycleService;
-    private final NotificationDeliveryService notificationDeliveryService;
+    private final LabNotificationCompensationService notificationCompensationService;
     private final LabJobProperties jobProperties;
     private final Clock clock;
 
@@ -28,14 +28,14 @@ public class LabLifecycleJob
             InspectionScheduleService inspectionScheduleService,
             InspectionLifecycleService inspectionLifecycleService,
             HazardLifecycleService hazardLifecycleService,
-            NotificationDeliveryService notificationDeliveryService,
+            LabNotificationCompensationService notificationCompensationService,
             LabJobProperties jobProperties, Clock clock)
     {
         this.reservationLifecycleService = reservationLifecycleService;
         this.inspectionScheduleService = inspectionScheduleService;
         this.inspectionLifecycleService = inspectionLifecycleService;
         this.hazardLifecycleService = hazardLifecycleService;
-        this.notificationDeliveryService = notificationDeliveryService;
+        this.notificationCompensationService = notificationCompensationService;
         this.jobProperties = jobProperties;
         this.clock = clock;
     }
@@ -67,7 +67,9 @@ public class LabLifecycleJob
 
     public int compensateNotifications()
     {
-        return notificationDeliveryService.compensateDue(batchSize());
+        LocalDateTime now = now();
+        return notificationCompensationService.retryFailed(now, batchSize())
+                + notificationCompensationService.reconcileStatusHistory(now, batchSize());
     }
 
     private LocalDateTime now()

@@ -30,6 +30,7 @@ class LabMapperXmlContractTest
             "mapper/lab/LabDataScopeMapper.xml",
             "mapper/lab/LabDictionaryMapper.xml",
             "mapper/lab/LabAttachmentMapper.xml",
+            "mapper/lab/LabStatusHistoryMapper.xml",
             "mapper/lab/LabReservationMapper.xml",
             "mapper/lab/LabSystemConfigMapper.xml",
             "mapper/lab/LabUsageRecordMapper.xml",
@@ -83,8 +84,12 @@ class LabMapperXmlContractTest
                 statement(LabDataScopeMapper.class, "hasAllLaboratoryScope"),
                 statement(LabDataScopeMapper.class, "selectScopedLaboratoryIds"),
                 statement(LabDictionaryMapper.class, "countEnabledValue"),
+                statement(LabAttachmentMapper.class, "selectListByObject"),
                 statement(LabAttachmentMapper.class, "selectByIdForUpdate"),
                 statement(LabAttachmentMapper.class, "countActiveByObject"),
+                statement(LabStatusHistoryMapper.class, "selectByObject"),
+                statement(LabStatusHistoryMapper.class, "selectActiveById"),
+                statement(LabStatusHistoryMapper.class, "selectNotificationCandidateIds"),
                 statement(LabReservationMapper.class, "selectByIdForUpdate"),
                 statement(LabReservationMapper.class, "countActiveOverlaps"),
                 statement(LabReservationMapper.class, "updateStatusConditionally"),
@@ -203,6 +208,38 @@ class LabMapperXmlContractTest
         assertThat(sql)
                 .contains("from sys_config", "where config_key = ?")
                 .doesNotContain("status");
+    }
+
+    @Test
+    void dashboardAggregatesAreScopedWindowedAndCountOnlySentUnreadMessages()
+    {
+        LabDataScope emptyScope = new LabDataScope(7L, false, Set.of());
+        LocalDateTime start = LocalDateTime.of(2026, 8, 1, 0, 0);
+        LocalDateTime end = LocalDateTime.of(2026, 9, 1, 0, 0);
+
+        String devices = sql(statement(LabDashboardMapper.class, "countDeviceStates"),
+                params("scope", emptyScope));
+        String reservations = sql(statement(LabDashboardMapper.class, "countReservationStates"),
+                params("userId", 7L, "scope", emptyScope,
+                        "windowStart", start, "windowEnd", end));
+        String usage = sql(statement(LabDashboardMapper.class, "sumUsageMinutes"),
+                params("userId", 7L, "scope", emptyScope,
+                        "windowStart", start, "windowEnd", end));
+        String notifications = sql(statement(LabDashboardMapper.class,
+                "countUnreadNotifications"), params("userId", 7L));
+
+        assertThat(devices).containsPattern("and 1\\s*=\\s*0")
+                .contains("group by d.status");
+        assertThat(reservations).contains("r.applicant_id = ?", "r.start_time >= ?",
+                "r.start_time < ?", "group by r.status");
+        assertThat(usage).contains("timestampdiff(minute", "greatest(u.checked_out_at, ?)",
+                "least(coalesce(u.returned_at, ?), ?)");
+        assertThat(notifications).contains("delivery_status = 'sent'", "read_at is null");
+        for (String statementName : List.of("countRepairStates", "countHazardStates"))
+        {
+            assertThat(configuration.hasStatement(statement(LabDashboardMapper.class,
+                    statementName))).isTrue();
+        }
     }
 
     private String sql(String statementId, Map<String, Object> parameters)

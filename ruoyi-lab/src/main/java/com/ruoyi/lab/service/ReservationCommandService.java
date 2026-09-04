@@ -8,7 +8,8 @@ import com.ruoyi.lab.vo.ReservationVo;
 /** Reservation creation and lifecycle commands. */
 public interface ReservationCommandService
 {
-    ReservationVo apply(long applicantId, String idempotencyKey, ReservationApplyDto request);
+    ReservationApplyResult apply(long applicantId, String idempotencyKey,
+            ReservationApplyDto request);
 
     ReservationVo approve(Long reservationId, ReservationDecisionDto command,
             Long approverId, String username);

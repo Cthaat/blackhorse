@@ -40,12 +40,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         select <include refid="NotificationColumns" />
         from lab_notification
         where id = #{notificationId} and receiver_id = #{receiverId}
+          and delivery_status = 'SENT'
     </select>
 
     <select id="selectMine" resultMap="LabNotificationResult">
         select <include refid="NotificationColumns" />
         from lab_notification
-        where receiver_id = #{receiverId}
+        where receiver_id = #{receiverId} and delivery_status = 'SENT'
         <if test="unreadOnly">and read_at is null</if>
         order by create_time desc, id desc
     </select>
@@ -58,9 +59,20 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         limit #{limit}
     </select>
 
+    <select id="selectRetryable" resultMap="LabNotificationResult">
+        select <include refid="NotificationColumns" />
+        from lab_notification
+        where delivery_status = 'FAILED'
+          and next_retry_at &lt;= #{now}
+          and attempt_count &lt; 10
+        order by next_retry_at, id
+        limit #{limit}
+    </select>
+
     <update id="markReadMine">
         update lab_notification set read_at = #{readAt}, update_time = #{readAt}
-        where id = #{notificationId} and receiver_id = #{receiverId} and read_at is null
+        where id = #{notificationId} and receiver_id = #{receiverId}
+          and delivery_status = 'SENT' and read_at is null
     </update>
 
     <update id="markSent">

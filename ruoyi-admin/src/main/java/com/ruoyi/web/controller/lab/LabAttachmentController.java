@@ -41,6 +41,14 @@ public class LabAttachmentController extends BaseController
         this.attachmentService = attachmentService;
     }
 
+    @PreAuthorize("@ss.hasPermi('lab:attachment:read')")
+    @GetMapping
+    public AjaxResult list(@RequestParam @NotBlank String businessType,
+            @RequestParam @Positive Long businessId)
+    {
+        return success(attachmentService.list(businessType, businessId));
+    }
+
     @PreAuthorize("@ss.hasPermi('lab:attachment:manage')")
     @Log(title = "实验室附件", businessType = BusinessType.INSERT)
     @PostMapping

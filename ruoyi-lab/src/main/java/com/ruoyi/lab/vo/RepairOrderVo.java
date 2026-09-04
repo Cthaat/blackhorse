@@ -4,14 +4,19 @@ import java.time.LocalDateTime;
 import com.ruoyi.lab.domain.LabRepairOrder;
 import com.ruoyi.lab.domain.RepairSourceType;
 import com.ruoyi.lab.domain.RepairStatus;
+import com.ruoyi.lab.serializer.LabBusinessId;
+import com.ruoyi.lab.serializer.LabBusinessTime;
 
-public record RepairOrderVo(Long id, String repairNo, Long deviceId, String assetNo,
-        String deviceName, RepairSourceType sourceType, Long sourceId, Long reporterId,
-        String faultDescription, Long assigneeId, LocalDateTime assignedAt,
-        LocalDateTime startedAt, String repairResult, LocalDateTime resultSubmittedAt,
-        String acceptanceResult, String acceptanceReason, Long acceptedBy,
-        LocalDateTime acceptedAt, RepairStatus status, Integer version,
-        LocalDateTime createTime)
+public record RepairOrderVo(@LabBusinessId Long id, String repairNo,
+        @LabBusinessId Long deviceId, String assetNo, String deviceName,
+        RepairSourceType sourceType, @LabBusinessId Long sourceId,
+        @LabBusinessId Long reporterId, String faultDescription,
+        @LabBusinessId Long assigneeId, @LabBusinessTime LocalDateTime assignedAt,
+        @LabBusinessTime LocalDateTime startedAt, String repairResult,
+        @LabBusinessTime LocalDateTime resultSubmittedAt, String acceptanceResult,
+        String acceptanceReason, @LabBusinessId Long acceptedBy,
+        @LabBusinessTime LocalDateTime acceptedAt, RepairStatus status, Integer version,
+        @LabBusinessTime LocalDateTime createTime)
 {
     public static RepairOrderVo from(LabRepairOrder order)
     {

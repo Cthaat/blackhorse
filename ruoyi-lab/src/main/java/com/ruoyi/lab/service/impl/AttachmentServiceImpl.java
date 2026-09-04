@@ -3,6 +3,7 @@ package com.ruoyi.lab.service.impl;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Objects;
 import com.ruoyi.lab.domain.LabAttachment;
 import com.ruoyi.lab.exception.LabBusinessException;
@@ -42,6 +43,17 @@ public class AttachmentServiceImpl implements AttachmentService
         this.objectAuthorizer = objectAuthorizer;
         this.attachmentPolicy = attachmentPolicy;
         this.storageService = storageService;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AttachmentVo> list(String businessType, Long businessId)
+    {
+        long objectId = requirePositive(businessId);
+        String normalizedType = objectAuthorizer.normalizeBusinessType(businessType);
+        objectAuthorizer.assertReadable(normalizedType, objectId);
+        return attachmentMapper.selectListByObject(normalizedType, objectId).stream()
+                .map(AttachmentVo::from).toList();
     }
 
     @Override

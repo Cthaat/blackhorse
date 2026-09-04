@@ -36,7 +36,8 @@ public class LabInspectionPlanController extends BaseController
     @PreAuthorize("@ss.hasPermi('lab:inspection:plan:add')")
     @Log(title="巡检计划", businessType=BusinessType.INSERT)
     @PostMapping public ResponseEntity<AjaxResult> create(@Valid @RequestBody InspectionPlanCommand command)
-    { return ResponseEntity.status(HttpStatus.CREATED).body(success(service.create(command, getUserId(), getUsername()))); }
+    { return ResponseEntity.status(HttpStatus.CREATED).body(success(
+            String.valueOf(service.create(command, getUserId(), getUsername())))); }
 
     @PreAuthorize("@ss.hasPermi('lab:inspection:plan:edit')")
     @Log(title="巡检计划", businessType=BusinessType.UPDATE)

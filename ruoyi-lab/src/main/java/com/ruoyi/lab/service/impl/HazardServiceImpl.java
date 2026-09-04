@@ -120,14 +120,19 @@ public class HazardServiceImpl implements HazardService
     @Override
     public List<LabHazard> list(HazardStatus status, HazardSeverity severity, Long ownerId)
     {
-        return hazardMapper.selectListByScope(dataScopeService.resolveCurrentScope(), ownerId,
-                status, severity);
+        return hazardMapper.selectListByScope(dataScopeService.resolveCurrentScope(),
+                permissionService.currentUserId(), ownerId, status, severity);
     }
 
     @Override
     public LabHazard get(Long hazardId)
     {
         LabHazard hazard = requireActive(hazardId);
+        if (hazard.getOwnerId() != null
+                && hazard.getOwnerId() == permissionService.currentUserId())
+        {
+            return hazard;
+        }
         assertTargetReadable(hazard.getTargetType(), hazard.getTargetId());
         return hazard;
     }

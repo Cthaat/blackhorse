@@ -6,19 +6,25 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.ruoyi.lab.serializer.LabBusinessId;
+import com.ruoyi.lab.serializer.LabBusinessTime;
 
 @TableName("lab_inspection_plan_item")
 public class LabInspectionPlanItem implements Serializable
 {
     private static final long serialVersionUID = 1L;
     @TableId(value = "id", type = IdType.AUTO)
+    @LabBusinessId
     private Long id;
+    @LabBusinessId
     private Long planId;
     private String itemCode;
     private String content;
     private Integer sortOrder;
     private String enabled;
+    @LabBusinessTime
     private LocalDateTime createTime;
+    @LabBusinessTime
     private LocalDateTime updateTime;
     @TableLogic(value = "0", delval = "2")
     private String delFlag;

@@ -2,6 +2,7 @@ package com.ruoyi.lab.service.impl;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
+import com.ruoyi.lab.config.LabJobProperties;
 import com.ruoyi.lab.domain.LabNotification;
 import com.ruoyi.lab.domain.NotificationDeliveryStatus;
 import com.ruoyi.lab.exception.LabBusinessException;
@@ -57,7 +58,8 @@ public class NotificationDeliveryServiceImpl implements NotificationDeliveryServ
     @Transactional
     public int compensateDue(int batchSize)
     {
-        if (batchSize < 1 || batchSize > 1000)
+        if (batchSize < LabJobProperties.MIN_BATCH_SIZE
+                || batchSize > LabJobProperties.MAX_BATCH_SIZE)
         {
             throw new LabBusinessException(LabErrorCode.VALIDATION_ERROR, "补偿批量大小无效");
         }

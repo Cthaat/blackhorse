@@ -33,6 +33,23 @@
           <size-select id="size-select" class="right-menu-item hover-effect" />
         </el-tooltip>
 
+        <el-tooltip v-if="canViewLabNotifications" content="实验室消息中心" effect="dark" placement="bottom">
+          <button
+            id="lab-notification-center"
+            type="button"
+            class="right-menu-item hover-effect lab-notification-entry"
+            :aria-label="labNotificationAriaLabel"
+            @click="openLabNotificationCenter"
+          >
+            <svg-icon icon-class="message" />
+            <span
+              v-if="labNotificationStore.unreadCount > 0"
+              class="lab-notification-badge"
+              aria-hidden="true"
+            >{{ labNotificationBadge }}</span>
+          </button>
+        </el-tooltip>
+
         <el-tooltip content="消息通知" effect="dark" placement="bottom">
           <header-notice id="header-notice" class="right-menu-item hover-effect" />
         </el-tooltip>
@@ -80,6 +97,7 @@ import useAppStore from '@/store/modules/app'
 import useUserStore from '@/store/modules/user'
 import useLockStore from '@/store/modules/lock'
 import useSettingsStore from '@/store/modules/settings'
+import useLabNotificationStore from '@/store/modules/labNotification'
 import HeaderNotice from './HeaderNotice'
 
 const route = useRoute()
@@ -88,6 +106,30 @@ const appStore = useAppStore()
 const userStore = useUserStore()
 const lockStore = useLockStore()
 const settingsStore = useSettingsStore()
+const labNotificationStore = useLabNotificationStore()
+const canViewLabNotifications = computed(() => userStore.permissions.some(permission =>
+  permission === '*:*:*' || permission === 'lab:notification:list'
+))
+const labNotificationBadge = computed(() => labNotificationStore.unreadCount > 99
+  ? '99+'
+  : String(labNotificationStore.unreadCount)
+)
+const labNotificationAriaLabel = computed(() => labNotificationStore.unreadCount > 0
+  ? `实验室消息中心，${labNotificationStore.unreadCount}条未读消息`
+  : '实验室消息中心'
+)
+
+function syncLabNotificationPolling(allowed = canViewLabNotifications.value) {
+  if (allowed) {
+    labNotificationStore.startPolling()
+    return
+  }
+  labNotificationStore.stopPolling()
+}
+
+onMounted(() => syncLabNotificationPolling())
+watch(canViewLabNotifications, syncLabNotificationPolling)
+onBeforeUnmount(() => labNotificationStore.stopPolling())
 
 function toggleSideBar() {
   appStore.toggleSideBar()
@@ -130,6 +172,10 @@ function lockScreen() {
   const currentPath = route.fullPath
   lockStore.lockScreen(currentPath)
   router.push('/lock')
+}
+
+function openLabNotificationCenter() {
+  router.push('/lab/notifications')
 }
 
 async function toggleTheme(event) {
@@ -263,6 +309,37 @@ async function toggleTheme(event) {
           &:hover {
             transform: scale(1.15);
           }
+        }
+      }
+
+      &.lab-notification-entry {
+        position: relative;
+        border: 0;
+        background: transparent;
+        line-height: inherit;
+
+        .svg-icon {
+          width: 1.2em;
+          height: 1.2em;
+          vertical-align: -0.2em;
+        }
+
+        .lab-notification-badge {
+          position: absolute;
+          top: 5px;
+          right: 0;
+          min-width: 16px;
+          height: 16px;
+          padding: 0 4px;
+          border-radius: 10px;
+          background: var(--el-color-danger);
+          color: var(--el-color-white);
+          font-size: 10px;
+          line-height: 16px;
+          text-align: center;
+          white-space: nowrap;
+          pointer-events: none;
+          box-sizing: border-box;
         }
       }
     }

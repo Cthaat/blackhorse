@@ -6,30 +6,41 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.ruoyi.lab.serializer.LabBusinessId;
+import com.ruoyi.lab.serializer.LabBusinessTime;
 
 @TableName(value = "lab_hazard", autoResultMap = true)
 public class LabHazard implements Serializable
 {
     private static final long serialVersionUID = 1L;
     @TableId(value = "id", type = IdType.AUTO)
+    @LabBusinessId
     private Long id;
     private String hazardNo;
+    @LabBusinessId
     private Long sourceItemId;
+    @LabBusinessId
     private Long relatedHazardId;
     private HazardTargetType targetType;
+    @LabBusinessId
     private Long targetId;
     private HazardSeverity severity;
+    @LabBusinessId
     private Long ownerId;
+    @LabBusinessTime
     private LocalDateTime deadline;
     private String requirements;
     private HazardStatus status;
     private String overdueFlag;
+    @LabBusinessTime
     private LocalDateTime overdueSetAt;
     private Long overdueEventVersion;
     private Integer version;
     private String createBy;
+    @LabBusinessTime
     private LocalDateTime createTime;
     private String updateBy;
+    @LabBusinessTime
     private LocalDateTime updateTime;
     @TableLogic(value = "0", delval = "2")
     private String delFlag;

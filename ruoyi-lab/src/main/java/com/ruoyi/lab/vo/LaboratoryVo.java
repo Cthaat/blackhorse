@@ -1,27 +1,29 @@
 package com.ruoyi.lab.vo;
 
 import java.time.LocalDateTime;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.ruoyi.lab.domain.LabLaboratory;
 import com.ruoyi.lab.domain.LaboratoryStatus;
+import com.ruoyi.lab.serializer.LabBusinessId;
+import com.ruoyi.lab.serializer.LabBusinessTime;
 
 /** Read model for a laboratory. */
 public class LaboratoryVo
 {
-    @JsonSerialize(using = ToStringSerializer.class)
+    @LabBusinessId
     private Long id;
     private String labCode;
     private String name;
-    @JsonSerialize(using = ToStringSerializer.class)
+    @LabBusinessId
     private Long deptId;
-    @JsonSerialize(using = ToStringSerializer.class)
+    @LabBusinessId
     private Long managerId;
     private String location;
     private String description;
     private LaboratoryStatus status;
     private Integer version;
+    @LabBusinessTime
     private LocalDateTime createTime;
+    @LabBusinessTime
     private LocalDateTime updateTime;
 
     public static LaboratoryVo from(LabLaboratory source)

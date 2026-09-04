@@ -163,6 +163,90 @@ export const dynamicRoutes = [
         meta: { title: '修改生成配置', activeMenu: '/tool/gen' }
       }
     ]
+  },
+  {
+    path: '/lab/device/detail',
+    component: Layout,
+    hidden: true,
+    permissions: ['lab:device:query'],
+    children: [
+      {
+        path: ':id',
+        component: () => import('@/views/lab/device/index'),
+        name: 'LabDeviceDetail',
+        meta: { title: '设备详情', activeMenu: '/lab/assets/devices' }
+      }
+    ]
+  },
+  {
+    path: '/lab/reservation/apply',
+    component: Layout,
+    hidden: true,
+    permissions: ['lab:reservation:apply'],
+    children: [
+      {
+        path: '',
+        component: () => import('@/views/lab/reservation/index'),
+        name: 'LabReservationApply',
+        meta: { title: '预约申请', activeMenu: '/lab/reservations/mine' }
+      }
+    ]
+  },
+  {
+    path: '/lab/reservation/detail',
+    component: Layout,
+    hidden: true,
+    permissions: ['lab:reservation:mine', 'lab:reservation:list'],
+    children: [
+      {
+        path: ':id',
+        component: () => import('@/views/lab/reservation/index'),
+        name: 'LabReservationDetail',
+        meta: { title: '预约详情', activeMenu: '/lab/reservations/mine' }
+      }
+    ]
+  },
+  {
+    path: '/lab/repair/detail',
+    component: Layout,
+    hidden: true,
+    permissions: ['lab:repair:query'],
+    children: [
+      {
+        path: ':id',
+        component: () => import('@/views/lab/repair/index'),
+        name: 'LabRepairDetail',
+        meta: { title: '维修详情', activeMenu: '/lab/repair' }
+      }
+    ]
+  },
+  {
+    path: '/lab/inspection/task/execute',
+    component: Layout,
+    hidden: true,
+    permissions: ['lab:inspection:task:execute'],
+    children: [
+      {
+        path: ':id',
+        component: () => import('@/views/lab/inspection/task/execute'),
+        name: 'LabInspectionTaskExecute',
+        meta: { title: '执行巡检', activeMenu: '/lab/safety/inspection-tasks' }
+      }
+    ]
+  },
+  {
+    path: '/lab/hazard/detail',
+    component: Layout,
+    hidden: true,
+    permissions: ['lab:hazard:list'],
+    children: [
+      {
+        path: ':id',
+        component: () => import('@/views/lab/hazard/detail'),
+        name: 'LabHazardDetail',
+        meta: { title: '隐患详情', activeMenu: '/lab/safety/hazards' }
+      }
+    ]
   }
 ]
 

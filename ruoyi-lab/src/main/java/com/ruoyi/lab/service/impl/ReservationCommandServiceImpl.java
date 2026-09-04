@@ -27,6 +27,7 @@ import com.ruoyi.lab.service.LabHazardBlocker;
 import com.ruoyi.lab.service.LabIdempotencyStore;
 import com.ruoyi.lab.service.LabQualificationGuard;
 import com.ruoyi.lab.service.LabStatusHistoryService;
+import com.ruoyi.lab.service.ReservationApplyResult;
 import com.ruoyi.lab.service.ReservationCommandService;
 import com.ruoyi.lab.service.ReservationPolicy;
 import com.ruoyi.lab.service.ReservationPolicy.ValidatedReservation;
@@ -87,7 +88,8 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
 
     @Override
     @Transactional
-    public ReservationVo apply(long applicantId, String idempotencyKey, ReservationApplyDto request)
+    public ReservationApplyResult apply(long applicantId, String idempotencyKey,
+            ReservationApplyDto request)
     {
         requirePositive(applicantId, "用户编号无效");
         String key = requireIdempotencyKey(idempotencyKey);
@@ -101,7 +103,7 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
             LabReservation cached = reservationMapper.selectActiveById(cacheHint.get().reservationId());
             if (isActiveIdempotency(cached, applicantId, key, requestHash, now))
             {
-                return ReservationVo.from(cached);
+                return replay(cached);
             }
         }
 
@@ -152,7 +154,7 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
         historyService.append(OBJECT_TYPE, reservation.getId(), null,
                 ReservationStatus.PENDING.name(), applicantId, "提交预约申请");
         registerCachePut(applicantId, key, reservation.getId(), requestHash);
-        return ReservationVo.from(reservation);
+        return new ReservationApplyResult(ReservationVo.from(reservation), false);
     }
 
     @Override
@@ -363,14 +365,20 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
                 && reservation.getIdempotencyExpiresAt().isAfter(now);
     }
 
-    private static ReservationVo replayOrConflict(LabReservation reservation, String requestHash)
+    private static ReservationApplyResult replayOrConflict(LabReservation reservation,
+            String requestHash)
     {
         if (!Objects.equals(reservation.getRequestHash(), requestHash))
         {
             throw new LabBusinessException(LabErrorCode.LAB_DUPLICATE_OPERATION,
                     "幂等键已用于不同预约请求");
         }
-        return ReservationVo.from(reservation);
+        return replay(reservation);
+    }
+
+    private static ReservationApplyResult replay(LabReservation reservation)
+    {
+        return new ReservationApplyResult(ReservationVo.from(reservation), true);
     }
 
     private LabReservation requireActive(long reservationId)

@@ -20,6 +20,7 @@ import com.ruoyi.lab.security.LabDataScopeService;
 import com.ruoyi.lab.security.LabObjectPermissionService;
 import com.ruoyi.lab.service.InspectionPlanService;
 import com.ruoyi.lab.service.LabStatusHistoryService;
+import com.ruoyi.lab.vo.InspectionPlanDetailVo;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -121,7 +122,7 @@ public class InspectionPlanServiceImpl implements InspectionPlanService
     }
 
     @Override
-    public LabInspectionPlan get(Long planId)
+    public InspectionPlanDetailVo get(Long planId)
     {
         if (planId == null || planId <= 0)
         {
@@ -133,7 +134,8 @@ public class InspectionPlanServiceImpl implements InspectionPlanService
             throw notFound();
         }
         permissionService.assertLaboratoryReadable(plan.getLaboratoryId());
-        return plan;
+        List<LabInspectionPlanItem> items = itemMapper.selectByPlan(planId);
+        return new InspectionPlanDetailVo(plan, items == null ? List.of() : items);
     }
 
     private void changeStatus(Long planId, InspectionPlanStatus expected,

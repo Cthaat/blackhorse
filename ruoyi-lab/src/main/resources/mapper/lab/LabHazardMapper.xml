@@ -23,11 +23,12 @@
         select distinct <include refid="Columns" /> from lab_hazard h
         left join lab_device d on h.target_type='DEVICE' and d.id=h.target_id and d.del_flag='0'
         where h.del_flag='0'
-        <choose><when test="scope != null and scope.allLaboratories"><!-- unrestricted --></when>
+        and (h.owner_id=#{viewerId}
+        <choose><when test="scope != null and scope.allLaboratories">or 1=1</when>
         <when test="scope != null and scope.restricted() and scope.laboratoryIds != null and !scope.laboratoryIds.isEmpty()">
-            and ((h.target_type='LABORATORY' and h.target_id in <foreach collection="scope.laboratoryIds" item="id" open="(" separator="," close=")">#{id}</foreach>)
+            or ((h.target_type='LABORATORY' and h.target_id in <foreach collection="scope.laboratoryIds" item="id" open="(" separator="," close=")">#{id}</foreach>)
             or (h.target_type='DEVICE' and d.laboratory_id in <foreach collection="scope.laboratoryIds" item="id" open="(" separator="," close=")">#{id}</foreach>))
-        </when><otherwise>and 1=0</otherwise></choose>
+        </when></choose>)
         <if test="ownerId != null">and h.owner_id=#{ownerId}</if><if test="status != null">and h.status=#{status}</if><if test="severity != null">and h.severity=#{severity}</if>
         order by h.create_time desc
     </select>
@@ -39,7 +40,41 @@
         order by h.id for update
     </select>
     <update id="updateStatusConditionally">update lab_hazard set status=#{target},update_by=#{updateBy},update_time=#{updateTime},version=version+1 where id=#{hazardId} and status=#{expected} and del_flag='0'</update>
-    <update id="markOverdue">update lab_hazard set overdue_flag='1',overdue_set_at=#{now},overdue_event_version=overdue_event_version+1,update_by=#{updateBy},update_time=#{now},version=version+1 where id in (select id from (select id from lab_hazard where deadline &lt; #{now} and status &lt;&gt; 'CLOSED' and overdue_flag='0' and del_flag='0' order by id limit #{batchSize}) due)</update>
+    <select id="selectOverdueCandidates" resultMap="HazardResult">
+        select <include refid="Columns" /> from lab_hazard h
+        where h.deadline &lt; #{now} and h.status &lt;&gt; 'CLOSED'
+          and h.overdue_flag='0' and h.del_flag='0'
+        order by h.id limit #{limit} for update
+    </select>
+    <update id="markOneOverdue">
+        update lab_hazard
+        set overdue_flag='1', overdue_set_at=#{now},
+            overdue_event_version=overdue_event_version+1,
+            update_by=#{updateBy}, update_time=#{now}, version=version+1
+        where id=#{hazardId} and version=#{expectedVersion}
+          and overdue_flag='0' and del_flag='0'
+    </update>
+    <select id="selectUnreconciledOverdue" resultMap="HazardResult">
+        select <include refid="Columns" /> from lab_hazard h
+        where h.overdue_flag='1' and h.overdue_set_at is not null
+          and h.overdue_event_version &gt; 0 and h.del_flag='0'
+          and ((h.owner_id is not null and not exists (
+                  select 1 from lab_notification n
+                  where n.dedupe_key=concat('overdue:hazard:',h.id,':',h.overdue_event_version,':',h.owner_id)
+              )) or exists (
+                  select 1 from sys_user_role ur
+                  join sys_user u on u.user_id=ur.user_id and u.status='0' and u.del_flag='0'
+                  join sys_role r on r.role_id=ur.role_id and r.role_key='lab_safety_officer' and r.status='0' and r.del_flag='0'
+                  join lab_laboratory l on l.id=case when h.target_type='LABORATORY' then h.target_id else (select d.laboratory_id from lab_device d where d.id=h.target_id and d.del_flag='0') end and l.del_flag='0'
+                  where (r.data_scope='1'
+                    or (r.data_scope='2' and exists (select 1 from sys_role_dept rd where rd.role_id=r.role_id and rd.dept_id=l.dept_id))
+                    or (r.data_scope='3' and l.dept_id=u.dept_id)
+                    or (r.data_scope='4' and exists (select 1 from sys_dept sd where sd.dept_id=l.dept_id and sd.status='0' and sd.del_flag='0' and (sd.dept_id=u.dept_id or find_in_set(u.dept_id,sd.ancestors)&gt;0)))
+                    or (r.data_scope='5' and l.manager_id=u.user_id))
+                    and not exists (select 1 from lab_notification n where n.dedupe_key=concat('overdue:hazard:',h.id,':',h.overdue_event_version,':',u.user_id))
+              ))
+        order by h.id limit #{limit}
+    </select>
     <select id="countOpenUsageForDevice" resultType="int">select count(1) from lab_usage_record where device_id=#{deviceId} and returned_at is null and del_flag='0'</select>
     <select id="countOpenRepairForDevice" resultType="int">select count(1) from lab_repair_order where device_id=#{deviceId} and status in ('WAIT_ASSIGN','WAIT_REPAIR','IN_PROGRESS','WAIT_ACCEPTANCE') and del_flag='0'</select>
 </mapper>

@@ -19,6 +19,9 @@ public interface LabNotificationMapper extends BaseMapper<LabNotification>
 
     List<Long> selectDueFailedIds(@Param("now") LocalDateTime now, @Param("limit") int limit);
 
+    List<LabNotification> selectRetryable(@Param("now") LocalDateTime now,
+            @Param("limit") int limit);
+
     int markReadMine(@Param("notificationId") Long notificationId,
             @Param("receiverId") Long receiverId, @Param("readAt") LocalDateTime readAt);
 

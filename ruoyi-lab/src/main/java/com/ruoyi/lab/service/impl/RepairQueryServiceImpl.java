@@ -7,7 +7,10 @@ import com.ruoyi.lab.exception.LabErrorCode;
 import com.ruoyi.lab.mapper.LabRepairOrderMapper;
 import com.ruoyi.lab.security.LabDataScope;
 import com.ruoyi.lab.security.LabDataScopeService;
+import com.ruoyi.lab.service.AttachmentService;
 import com.ruoyi.lab.service.RepairQueryService;
+import com.ruoyi.lab.service.StatusHistoryQueryService;
+import com.ruoyi.lab.vo.RepairOrderDetailVo;
 import com.ruoyi.lab.vo.RepairOrderVo;
 import org.springframework.stereotype.Service;
 
@@ -16,12 +19,18 @@ public class RepairQueryServiceImpl implements RepairQueryService
 {
     private final LabRepairOrderMapper repairMapper;
     private final LabDataScopeService dataScopeService;
+    private final StatusHistoryQueryService statusHistoryQueryService;
+    private final AttachmentService attachmentService;
 
     public RepairQueryServiceImpl(LabRepairOrderMapper repairMapper,
-            LabDataScopeService dataScopeService)
+            LabDataScopeService dataScopeService,
+            StatusHistoryQueryService statusHistoryQueryService,
+            AttachmentService attachmentService)
     {
         this.repairMapper = repairMapper;
         this.dataScopeService = dataScopeService;
+        this.statusHistoryQueryService = statusHistoryQueryService;
+        this.attachmentService = attachmentService;
     }
 
     @Override
@@ -34,7 +43,7 @@ public class RepairQueryServiceImpl implements RepairQueryService
     }
 
     @Override
-    public RepairOrderVo detail(Long orderId, Long currentUserId)
+    public RepairOrderDetailVo detail(Long orderId, Long currentUserId)
     {
         long id = requirePositive(orderId);
         long userId = requirePositive(currentUserId);
@@ -44,7 +53,9 @@ public class RepairQueryServiceImpl implements RepairQueryService
         {
             throw new LabBusinessException(LabErrorCode.RESOURCE_NOT_FOUND, "维修工单不存在");
         }
-        return result;
+        return new RepairOrderDetailVo(result,
+                statusHistoryQueryService.list("REPAIR_ORDER", id, userId),
+                attachmentService.list("REPAIR_ORDER", id));
     }
 
     private static long requirePositive(Long value)

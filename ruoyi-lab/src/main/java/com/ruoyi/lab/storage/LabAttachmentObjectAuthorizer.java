@@ -7,6 +7,8 @@ import com.ruoyi.lab.domain.LabLaboratory;
 import com.ruoyi.lab.domain.LabQualification;
 import com.ruoyi.lab.domain.LabHazard;
 import com.ruoyi.lab.domain.LabRectification;
+import com.ruoyi.lab.domain.LabRepairOrder;
+import com.ruoyi.lab.domain.RepairStatus;
 import com.ruoyi.lab.exception.LabBusinessException;
 import com.ruoyi.lab.exception.LabErrorCode;
 import com.ruoyi.lab.mapper.LabDeviceMapper;
@@ -14,6 +16,7 @@ import com.ruoyi.lab.mapper.LabLaboratoryMapper;
 import com.ruoyi.lab.mapper.LabQualificationMapper;
 import com.ruoyi.lab.mapper.LabHazardMapper;
 import com.ruoyi.lab.mapper.LabRectificationMapper;
+import com.ruoyi.lab.mapper.LabRepairOrderMapper;
 import com.ruoyi.lab.security.LabDataScope;
 import com.ruoyi.lab.security.LabDataScopeService;
 import com.ruoyi.lab.security.LabObjectPermissionService;
@@ -30,11 +33,13 @@ public class LabAttachmentObjectAuthorizer
     private final LabQualificationMapper qualificationMapper;
     private final LabHazardMapper hazardMapper;
     private final LabRectificationMapper rectificationMapper;
+    private final LabRepairOrderMapper repairOrderMapper;
 
     public LabAttachmentObjectAuthorizer(LabObjectPermissionService objectPermissionService,
             LabDataScopeService dataScopeService, LabLaboratoryMapper laboratoryMapper,
             LabDeviceMapper deviceMapper, LabQualificationMapper qualificationMapper,
-            LabHazardMapper hazardMapper, LabRectificationMapper rectificationMapper)
+            LabHazardMapper hazardMapper, LabRectificationMapper rectificationMapper,
+            LabRepairOrderMapper repairOrderMapper)
     {
         this.objectPermissionService = objectPermissionService;
         this.dataScopeService = dataScopeService;
@@ -43,6 +48,7 @@ public class LabAttachmentObjectAuthorizer
         this.qualificationMapper = qualificationMapper;
         this.hazardMapper = hazardMapper;
         this.rectificationMapper = rectificationMapper;
+        this.repairOrderMapper = repairOrderMapper;
     }
 
     public String normalizeBusinessType(String businessType)
@@ -52,7 +58,8 @@ public class LabAttachmentObjectAuthorizer
             throw invalidType();
         }
         String normalized = businessType.trim().toUpperCase(Locale.ROOT);
-        if (!List.of("LABORATORY", "DEVICE", "QUALIFICATION", "RECTIFICATION").contains(normalized))
+        if (!List.of("LABORATORY", "DEVICE", "QUALIFICATION", "RECTIFICATION",
+                "REPAIR_ORDER").contains(normalized))
         {
             throw invalidType();
         }
@@ -67,6 +74,7 @@ public class LabAttachmentObjectAuthorizer
             case "DEVICE" -> objectPermissionService.assertDeviceReadable(businessId);
             case "QUALIFICATION" -> assertQualificationReadable(businessId);
             case "RECTIFICATION" -> assertRectificationReadable(businessId);
+            case "REPAIR_ORDER" -> assertRepairReadable(businessId);
             default -> throw invalidType();
         }
     }
@@ -91,6 +99,7 @@ public class LabAttachmentObjectAuthorizer
                 assertQualificationManageable(businessId);
             }
             case "RECTIFICATION" -> assertRectificationManageable(businessId);
+            case "REPAIR_ORDER" -> assertRepairManageable(businessId);
             default -> throw invalidType();
         }
     }
@@ -131,6 +140,13 @@ public class LabAttachmentObjectAuthorizer
         }
         LabHazard hazard = hazardMapper.selectActiveById(round.getHazardId());
         requireExists(hazard);
+        long currentUserId = objectPermissionService.currentUserId();
+        if ((hazard.getOwnerId() != null && hazard.getOwnerId() == currentUserId)
+                || (round.getSubmitterId() != null && round.getSubmitterId() == currentUserId)
+                || (round.getReviewerId() != null && round.getReviewerId() == currentUserId))
+        {
+            return;
+        }
         if (hazard.getTargetType().name().equals("LABORATORY"))
         {
             objectPermissionService.assertLaboratoryReadable(hazard.getTargetId());
@@ -157,6 +173,46 @@ public class LabAttachmentObjectAuthorizer
         }
     }
 
+    private void assertRepairReadable(long repairOrderId)
+    {
+        LabRepairOrder order = repairOrderMapper.selectActiveById(repairOrderId);
+        requireExists(order);
+        long currentUserId = objectPermissionService.currentUserId();
+        LabDataScope scope = dataScopeService.resolveCurrentScope();
+        if (repairOrderMapper.selectScopedDetail(repairOrderId, currentUserId, scope) == null)
+        {
+            throw new LabBusinessException(LabErrorCode.LAB_OUT_OF_DATA_SCOPE,
+                    "对象不在当前数据范围内");
+        }
+    }
+
+    private void assertRepairManageable(long repairOrderId)
+    {
+        LabRepairOrder order = repairOrderMapper.selectByIdForUpdate(repairOrderId);
+        requireExists(order);
+        if (order.getStatus() == RepairStatus.CLOSED)
+        {
+            throw attachmentAccessDenied();
+        }
+
+        long currentUserId = objectPermissionService.currentUserId();
+        boolean assignedWorker = order.getAssigneeId() != null
+                && order.getAssigneeId() == currentUserId
+                && (order.getStatus() == RepairStatus.WAIT_REPAIR
+                        || order.getStatus() == RepairStatus.IN_PROGRESS);
+        if (assignedWorker)
+        {
+            return;
+        }
+
+        if (repairOrderMapper.countActiveUserRole(currentUserId, "lab_manager") > 0)
+        {
+            objectPermissionService.assertDeviceManageable(order.getDeviceId());
+            return;
+        }
+        throw attachmentAccessDenied();
+    }
+
     private static void requireExists(Object value)
     {
         if (value == null)
@@ -173,5 +229,10 @@ public class LabAttachmentObjectAuthorizer
     private static LabBusinessException invalidType()
     {
         return new LabBusinessException(LabErrorCode.VALIDATION_ERROR, "附件业务类型无效");
+    }
+
+    private static LabBusinessException attachmentAccessDenied()
+    {
+        return new LabBusinessException(LabErrorCode.ACCESS_DENIED, "当前用户无权管理维修附件");
     }
 }

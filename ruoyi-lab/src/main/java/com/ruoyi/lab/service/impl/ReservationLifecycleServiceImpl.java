@@ -3,6 +3,7 @@ package com.ruoyi.lab.service.impl;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
+import com.ruoyi.lab.config.LabJobProperties;
 import com.ruoyi.lab.domain.LabDevice;
 import com.ruoyi.lab.domain.LabReservation;
 import com.ruoyi.lab.domain.ReservationStatus;
@@ -94,7 +95,8 @@ public class ReservationLifecycleServiceImpl implements ReservationLifecycleServ
 
     private static void validate(LocalDateTime now, int batchSize)
     {
-        if (now == null || batchSize < 1 || batchSize > 500)
+        if (now == null || batchSize < LabJobProperties.MIN_BATCH_SIZE
+                || batchSize > LabJobProperties.MAX_BATCH_SIZE)
         {
             throw new LabBusinessException(LabErrorCode.VALIDATION_ERROR, "生命周期任务参数无效");
         }

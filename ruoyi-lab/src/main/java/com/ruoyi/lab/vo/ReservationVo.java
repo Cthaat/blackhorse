@@ -3,13 +3,17 @@ package com.ruoyi.lab.vo;
 import java.time.LocalDateTime;
 import com.ruoyi.lab.domain.LabReservation;
 import com.ruoyi.lab.domain.ReservationStatus;
+import com.ruoyi.lab.serializer.LabBusinessId;
+import com.ruoyi.lab.serializer.LabBusinessTime;
 
 /** Reservation API representation. */
-public record ReservationVo(Long id, String reservationNo, Long deviceId, Long applicantId,
-        LocalDateTime startTime, LocalDateTime endTime, String purpose, String remark,
-        ReservationStatus status, Long approvalBy, LocalDateTime approvalTime,
-        String approvalReason, LocalDateTime cancelTime, String cancelReason,
-        Integer version, LocalDateTime createTime)
+public record ReservationVo(@LabBusinessId Long id, String reservationNo,
+        @LabBusinessId Long deviceId, @LabBusinessId Long applicantId,
+        @LabBusinessTime LocalDateTime startTime, @LabBusinessTime LocalDateTime endTime,
+        String purpose, String remark, ReservationStatus status,
+        @LabBusinessId Long approvalBy, @LabBusinessTime LocalDateTime approvalTime,
+        String approvalReason, @LabBusinessTime LocalDateTime cancelTime, String cancelReason,
+        Integer version, @LabBusinessTime LocalDateTime createTime)
 {
     public static ReservationVo from(LabReservation reservation)
     {

@@ -45,7 +45,8 @@ public class LabHazardController extends BaseController
     @PreAuthorize("@ss.hasPermi('lab:hazard:add')")
     @Log(title="隐患登记", businessType=BusinessType.INSERT)
     @PostMapping public ResponseEntity<AjaxResult> create(@Valid @RequestBody CreateHazardCommand command)
-    { return ResponseEntity.status(HttpStatus.CREATED).body(success(hazardService.create(command, getUserId(), getUsername()))); }
+    { return ResponseEntity.status(HttpStatus.CREATED).body(success(
+            String.valueOf(hazardService.create(command, getUserId(), getUsername())))); }
 
     @PreAuthorize("@ss.hasPermi('lab:hazard:rectify')")
     @PostMapping("/{id}/start-rectification") public AjaxResult start(@PathVariable @Positive Long id)
@@ -54,7 +55,8 @@ public class LabHazardController extends BaseController
     @PreAuthorize("@ss.hasPermi('lab:hazard:rectify')")
     @PostMapping("/{id}/rectifications") public ResponseEntity<AjaxResult> submit(
             @PathVariable @Positive Long id, @Valid @RequestBody SubmitRectificationCommand command)
-    { return ResponseEntity.status(HttpStatus.CREATED).body(success(rectificationService.submit(id, command, getUserId(), getUsername()))); }
+    { return ResponseEntity.status(HttpStatus.CREATED).body(success(String.valueOf(
+            rectificationService.submit(id, command, getUserId(), getUsername())))); }
 
     @PreAuthorize("@ss.hasPermi('lab:hazard:review')")
     @PostMapping("/{hazardId}/rectifications/{roundId}/review") public AjaxResult review(

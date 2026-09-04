@@ -11,6 +11,7 @@ import com.ruoyi.lab.dto.ReservationApplyDto;
 import com.ruoyi.lab.dto.ReservationCancelDto;
 import com.ruoyi.lab.dto.ReservationDecisionDto;
 import com.ruoyi.lab.dto.ReservationQueryDto;
+import com.ruoyi.lab.service.ReservationApplyResult;
 import com.ruoyi.lab.service.ReservationCommandService;
 import com.ruoyi.lab.service.ReservationQueryService;
 import com.ruoyi.lab.vo.ReservationVo;
@@ -52,8 +53,9 @@ public class LabReservationController extends BaseController
             @RequestHeader("X-Idempotency-Key") @NotBlank String idempotencyKey,
             @Valid @RequestBody ReservationApplyDto request)
     {
-        ReservationVo reservation = commandService.apply(getUserId(), idempotencyKey, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(AjaxResult.success(reservation));
+        ReservationApplyResult result = commandService.apply(getUserId(), idempotencyKey, request);
+        HttpStatus status = result.replayed() ? HttpStatus.OK : HttpStatus.CREATED;
+        return ResponseEntity.status(status).body(AjaxResult.success(result.reservation()));
     }
 
     @PreAuthorize("@ss.hasAnyPermi('lab:reservation:list,lab:reservation:mine')")

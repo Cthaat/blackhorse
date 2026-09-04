@@ -12,8 +12,11 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "lab.jobs")
 public class LabJobProperties
 {
-    @Min(1)
-    @Max(1000)
+    public static final int MIN_BATCH_SIZE = 1;
+    public static final int MAX_BATCH_SIZE = 1000;
+
+    @Min(MIN_BATCH_SIZE)
+    @Max(MAX_BATCH_SIZE)
     private int batchSize = 200;
 
     public int getBatchSize()

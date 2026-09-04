@@ -24,6 +24,15 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         size, storage_key, sha256, create_by, create_time, del_flag
     </sql>
 
+    <select id="selectListByObject" resultMap="LabAttachmentResult">
+        select <include refid="AttachmentColumns" />
+        from lab_attachment
+        where business_type = #{businessType}
+          and business_id = #{businessId}
+          and del_flag = '0'
+        order by create_time, id
+    </select>
+
     <select id="selectByIdActive" resultMap="LabAttachmentResult">
         select <include refid="AttachmentColumns" />
         from lab_attachment

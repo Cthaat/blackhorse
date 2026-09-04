@@ -6,6 +6,7 @@ import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.UUID;
+import com.ruoyi.lab.config.LabJobProperties;
 import com.ruoyi.lab.domain.InspectionFrequencyType;
 import com.ruoyi.lab.domain.InspectionTaskStatus;
 import com.ruoyi.lab.domain.LabInspectionItem;
@@ -57,7 +58,8 @@ public class InspectionScheduleServiceImpl implements InspectionScheduleService
     public int generateDueTasks(LocalDateTime now, int batchSize)
     {
         LabSystemOperator operator = operatorProvider.requiredOperator();
-        if (now == null || batchSize < 1 || batchSize > 500)
+        if (now == null || batchSize < LabJobProperties.MIN_BATCH_SIZE
+                || batchSize > LabJobProperties.MAX_BATCH_SIZE)
         {
             throw new LabBusinessException(LabErrorCode.VALIDATION_ERROR, "巡检任务批处理参数无效");
         }
