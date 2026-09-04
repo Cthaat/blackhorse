@@ -1,5 +1,6 @@
 package com.ruoyi.lab.service.impl;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
@@ -12,7 +13,9 @@ import com.ruoyi.lab.dto.DeviceUpdateDto;
 import com.ruoyi.lab.exception.LabBusinessException;
 import com.ruoyi.lab.exception.LabErrorCode;
 import com.ruoyi.lab.mapper.LabDeviceMapper;
+import com.ruoyi.lab.mapper.LabDictionaryMapper;
 import com.ruoyi.lab.mapper.LabLaboratoryMapper;
+import com.ruoyi.lab.mapper.LabOptionsMapper;
 import com.ruoyi.lab.mapper.LabReservationMapper;
 import com.ruoyi.lab.security.LabDataScope;
 import com.ruoyi.lab.security.LabDataScopeService;
@@ -20,6 +23,7 @@ import com.ruoyi.lab.security.LabObjectPermissionService;
 import com.ruoyi.lab.service.DeviceService;
 import com.ruoyi.lab.service.LabSortWhitelist;
 import com.ruoyi.lab.service.LabStatusHistoryService;
+import com.ruoyi.lab.service.LabUserDirectory;
 import com.ruoyi.lab.vo.DeviceVo;
 import com.ruoyi.lab.vo.OccupiedRangeVo;
 import org.springframework.stereotype.Service;
@@ -30,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class DeviceServiceImpl implements DeviceService
 {
     private static final String OBJECT_TYPE = "DEVICE";
+    private static final String DEVICE_CATEGORY_DICT_TYPE = "lab_device_category";
 
     private final LabDeviceMapper deviceMapper;
     private final LabLaboratoryMapper laboratoryMapper;
@@ -38,11 +43,16 @@ public class DeviceServiceImpl implements DeviceService
     private final LabSortWhitelist sortWhitelist;
     private final LabStatusHistoryService historyService;
     private final LabReservationMapper reservationMapper;
+    private final LabDictionaryMapper dictionaryMapper;
+    private final Clock clock;
+    private final LabUserDirectory userDirectory;
+    private final LabOptionsMapper optionsMapper;
 
     public DeviceServiceImpl(LabDeviceMapper deviceMapper, LabLaboratoryMapper laboratoryMapper,
             LabDataScopeService dataScopeService, LabObjectPermissionService objectPermissionService,
             LabSortWhitelist sortWhitelist, LabStatusHistoryService historyService,
-            LabReservationMapper reservationMapper)
+            LabReservationMapper reservationMapper, LabDictionaryMapper dictionaryMapper,
+            Clock clock, LabUserDirectory userDirectory, LabOptionsMapper optionsMapper)
     {
         this.deviceMapper = deviceMapper;
         this.laboratoryMapper = laboratoryMapper;
@@ -51,6 +61,10 @@ public class DeviceServiceImpl implements DeviceService
         this.sortWhitelist = sortWhitelist;
         this.historyService = historyService;
         this.reservationMapper = reservationMapper;
+        this.dictionaryMapper = dictionaryMapper;
+        this.clock = clock;
+        this.userDirectory = userDirectory;
+        this.optionsMapper = optionsMapper;
     }
 
     @Override
@@ -58,20 +72,29 @@ public class DeviceServiceImpl implements DeviceService
             String keyword, String sortBy, String sortDirection)
     {
         LabDataScope scope = dataScopeService.resolveCurrentScope();
-        if (scope.empty())
-        {
-            return List.of();
-        }
         LabSortWhitelist.SortClause sort = sortWhitelist.resolve("device",
                 defaultValue(sortBy, "createTime"), defaultValue(sortDirection, "desc"));
-        return deviceMapper.selectListByScope(scope, laboratoryId, trimToNull(categoryCode), status,
-                trimToNull(keyword), sort).stream().map(DeviceVo::from).toList();
+        return deviceMapper.selectListByScope(scope, scope.userId(), LocalDateTime.now(clock),
+                laboratoryId, trimToNull(categoryCode), status, trimToNull(keyword), sort)
+                .stream().map(DeviceVo::from).toList();
     }
 
     @Override
     public DeviceVo getById(Long deviceId)
     {
-        return DeviceVo.from(requireInScope(requirePositive(deviceId), dataScopeService.resolveCurrentScope()));
+        long id = requirePositive(deviceId);
+        LabDataScope scope = dataScopeService.resolveCurrentScope();
+        LabDevice device = deviceMapper.selectByIdReadable(id, scope, scope.userId(),
+                LocalDateTime.now(clock));
+        if (device != null)
+        {
+            return DeviceVo.from(device);
+        }
+        if (scope.allLaboratories())
+        {
+            throw new LabBusinessException(LabErrorCode.RESOURCE_NOT_FOUND, "设备不存在");
+        }
+        throw outOfScope();
     }
 
     @Override
@@ -94,8 +117,10 @@ public class DeviceServiceImpl implements DeviceService
             throw new LabBusinessException(LabErrorCode.LAB_LABORATORY_DISABLED, "实验室已停用");
         }
 
+        String categoryCode = requireActiveCategory(input.getCategoryCode());
+        assertManagerCanManageLaboratory(input.getManagerId(), input.getLaboratoryId());
         LabDevice device = details(input.getAssetNo(), input.getLaboratoryId(), input.getName(),
-                input.getCategoryCode(), input.getModel(), input.getRiskLevel(), input.getLocation(),
+                categoryCode, input.getModel(), input.getRiskLevel(), input.getLocation(),
                 input.getManagerId(), input.getDescription(), username);
         device.setStatus(DeviceStatus.AVAILABLE);
         device.setVersion(0);
@@ -115,8 +140,10 @@ public class DeviceServiceImpl implements DeviceService
         long id = requirePositive(deviceId);
         objectPermissionService.assertDeviceManageable(id);
         objectPermissionService.assertLaboratoryManageable(requirePositive(input.getLaboratoryId()));
+        String categoryCode = requireActiveCategory(input.getCategoryCode());
+        assertManagerCanManageLaboratory(input.getManagerId(), input.getLaboratoryId());
         LabDevice device = details(input.getAssetNo(), input.getLaboratoryId(), input.getName(),
-                input.getCategoryCode(), input.getModel(), input.getRiskLevel(), input.getLocation(),
+                categoryCode, input.getModel(), input.getRiskLevel(), input.getLocation(),
                 input.getManagerId(), input.getDescription(), username);
         device.setId(id);
         if (deviceMapper.updateDetailsConditionally(device, input.getExpectedVersion()) != 1)
@@ -141,18 +168,24 @@ public class DeviceServiceImpl implements DeviceService
         return reservationMapper.selectOccupiedRanges(id, from, to);
     }
 
-    private LabDevice requireInScope(long id, LabDataScope scope)
+    private String requireActiveCategory(String categoryCode)
     {
-        LabDevice device = deviceMapper.selectByIdInScope(id, scope);
-        if (device != null)
+        String normalized = requireText(categoryCode);
+        if (dictionaryMapper.countEnabledValue(DEVICE_CATEGORY_DICT_TYPE, normalized) <= 0)
         {
-            return device;
+            throw new LabBusinessException(LabErrorCode.VALIDATION_ERROR, "设备类别无效或已停用");
         }
-        if (scope.allLaboratories())
+        return normalized;
+    }
+
+    private void assertManagerCanManageLaboratory(Long managerId, Long laboratoryId)
+    {
+        userDirectory.assertActiveRole(managerId, "lab_manager");
+        if (optionsMapper.countActiveUserLaboratoryScope(managerId, laboratoryId) <= 0)
         {
-            throw new LabBusinessException(LabErrorCode.RESOURCE_NOT_FOUND, "设备不存在");
+            throw new LabBusinessException(LabErrorCode.VALIDATION_ERROR,
+                    "所选设备负责人无权管理目标实验室");
         }
-        throw outOfScope();
     }
 
     private static LabBusinessException missingLaboratory(LabDataScope scope, Long laboratoryId)

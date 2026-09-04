@@ -55,6 +55,7 @@ public class UsageQueryServiceImpl implements UsageQueryService
     private static boolean studentOnly()
     {
         return SecurityUtils.hasRole("lab_student") && !SecurityUtils.hasRole("lab_manager")
+                && !SecurityUtils.hasRole("lab_safety_officer")
                 && !SecurityUtils.hasRole("lab_system_admin");
     }
 

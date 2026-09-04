@@ -22,11 +22,11 @@
 
         <el-descriptions :column="2" border class="mt16">
           <el-descriptions-item label="设备">{{ detail.order.assetNo }} · {{ detail.order.deviceName }}</el-descriptions-item>
-          <el-descriptions-item label="设备 ID">{{ detail.order.deviceId }}</el-descriptions-item>
+          <el-descriptions-item label="工单状态">{{ statusLabel(detail.order.status) }}</el-descriptions-item>
           <el-descriptions-item label="来源">{{ sourceLabel(detail.order.sourceType) }}</el-descriptions-item>
           <el-descriptions-item label="来源 ID">{{ detail.order.sourceId || '-' }}</el-descriptions-item>
           <el-descriptions-item label="报告人 ID">{{ detail.order.reporterId }}</el-descriptions-item>
-          <el-descriptions-item label="维修人 ID">{{ detail.order.assigneeId || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="维修人员">{{ workerLabel(detail.order.assigneeId) }}</el-descriptions-item>
           <el-descriptions-item label="故障描述" :span="2">{{ detail.order.faultDescription || '-' }}</el-descriptions-item>
           <el-descriptions-item label="分派时间">{{ formatDateTime(detail.order.assignedAt) }}</el-descriptions-item>
           <el-descriptions-item label="开始时间">{{ formatDateTime(detail.order.startedAt) }}</el-descriptions-item>
@@ -66,13 +66,19 @@ import { getRepairOrder } from '@/api/lab/repair'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  repairId: { type: [String, Number], default: '' }
+  repairId: { type: [String, Number], default: '' },
+  workerOptions: { type: Array, default: () => [] }
 })
 
 const emit = defineEmits(['update:modelValue'])
 const loading = ref(false)
 const errorMessage = ref('')
 const detail = ref()
+
+function workerLabel(id) {
+  if (!id) return '-'
+  return props.workerOptions.find(item => item.id === String(id))?.label || `用户 ${id}`
+}
 
 async function loadDetail() {
   if (!props.repairId) return

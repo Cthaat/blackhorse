@@ -2,6 +2,7 @@ package com.ruoyi.lab.storage;
 
 import java.util.List;
 import java.util.Locale;
+import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.lab.domain.LabDevice;
 import com.ruoyi.lab.domain.LabLaboratory;
 import com.ruoyi.lab.domain.LabQualification;
@@ -84,16 +85,19 @@ public class LabAttachmentObjectAuthorizer
         switch (normalizeBusinessType(businessType))
         {
             case "LABORATORY" -> {
+                requireBusinessPermission("lab:laboratory:edit");
                 LabLaboratory laboratory = laboratoryMapper.selectByIdForUpdate(businessId);
                 requireExists(laboratory);
                 objectPermissionService.assertLaboratoryManageable(businessId);
             }
             case "DEVICE" -> {
+                requireBusinessPermission("lab:device:edit");
                 LabDevice device = deviceMapper.selectByIdForUpdate(businessId);
                 requireExists(device);
                 objectPermissionService.assertDeviceManageable(businessId);
             }
             case "QUALIFICATION" -> {
+                requireBusinessPermission("lab:qualification:edit");
                 LabQualification qualification = qualificationMapper.selectByIdForUpdate(businessId);
                 requireExists(qualification);
                 assertQualificationManageable(businessId);
@@ -218,6 +222,15 @@ public class LabAttachmentObjectAuthorizer
         if (value == null)
         {
             throw notFound();
+        }
+    }
+
+    private static void requireBusinessPermission(String permission)
+    {
+        if (!SecurityUtils.hasPermi(permission))
+        {
+            throw new LabBusinessException(LabErrorCode.ACCESS_DENIED,
+                    "当前用户无权管理此类业务附件");
         }
     }
 

@@ -167,9 +167,9 @@
                            <el-tooltip placement="top">
                               <template #content>
                                  <div>
-                                    Bean调用示例：ryTask.ryParams('ry')
-                                    <br />Class类调用示例：com.ruoyi.quartz.task.RyTask.ryParams('ry')
-                                    <br />参数说明：支持字符串，布尔类型，长整型，浮点型，整型
+                                    Bean调用示例：labLifecycleJob.expirePendingReservations()
+                                    <br />Bean调用示例：labLifecycleJob.compensateNotifications()
+                                    <br />任务参数请使用现有 labLifecycleJob 的无参方法
                                  </div>
                               </template>
                               <el-icon><question-filled /></el-icon>

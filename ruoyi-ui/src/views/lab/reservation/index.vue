@@ -14,11 +14,15 @@
       <el-form-item label="预约编号" prop="reservationNo">
         <el-input v-model="queryParams.reservationNo" clearable placeholder="请输入预约编号" @keyup.enter="handleQuery" />
       </el-form-item>
-      <el-form-item label="设备 ID" prop="deviceId">
-        <el-input v-model="queryParams.deviceId" clearable placeholder="请输入设备 ID" @keyup.enter="handleQuery" />
+      <el-form-item label="设备" prop="deviceId">
+        <el-select v-model="queryParams.deviceId" clearable filterable placeholder="全部设备" style="width: 220px">
+          <el-option v-for="item in deviceOptions" :key="item.id" :label="item.label" :value="item.id" />
+        </el-select>
       </el-form-item>
-      <el-form-item v-if="approvalMode" label="申请人 ID" prop="applicantId">
-        <el-input v-model="queryParams.applicantId" clearable placeholder="请输入申请人 ID" @keyup.enter="handleQuery" />
+      <el-form-item v-if="approvalMode" label="申请人" prop="applicantId">
+        <el-select v-model="queryParams.applicantId" clearable filterable placeholder="全部学生" style="width: 220px">
+          <el-option v-for="item in applicantOptions" :key="item.id" :label="item.label" :value="item.id" />
+        </el-select>
       </el-form-item>
       <el-form-item label="状态" prop="status">
         <el-select v-model="queryParams.status" clearable placeholder="全部状态" class="query-select">
@@ -63,8 +67,8 @@
 
     <el-table v-loading="loading" :data="rows" row-key="id">
       <el-table-column label="预约编号" prop="reservationNo" min-width="176" show-overflow-tooltip />
-      <el-table-column label="设备 ID" prop="deviceId" min-width="120" />
-      <el-table-column v-if="approvalMode" label="申请人 ID" prop="applicantId" min-width="120" />
+      <el-table-column label="设备" min-width="190" show-overflow-tooltip><template #default="scope">{{ deviceLabel(scope.row.deviceId) }}</template></el-table-column>
+      <el-table-column v-if="approvalMode" label="申请人" min-width="170" show-overflow-tooltip><template #default="scope">{{ applicantLabel(scope.row.applicantId) }}</template></el-table-column>
       <el-table-column label="预约时段" min-width="285">
         <template #default="scope">
           <span>{{ formatDateTime(scope.row.startTime) }} — {{ formatDateTime(scope.row.endTime) }}</span>
@@ -109,7 +113,12 @@
     />
 
     <ReservationApply v-model="applyOpen" @saved="getList" />
-    <ReservationDetail v-model="detailOpen" :reservation-id="detailId" />
+    <ReservationDetail
+      v-model="detailOpen"
+      :reservation-id="detailId"
+      :device-options="deviceOptions"
+      :applicant-options="applicantOptions"
+    />
   </div>
 </template>
 
@@ -119,9 +128,11 @@ import ReservationDetail from './detail.vue'
 import {
   approveReservation,
   cancelReservation,
+  listReservationDevices,
   listReservations,
   rejectReservation
 } from '@/api/lab/reservation'
+import { listLabUserOptions } from '@/api/lab/options'
 
 const route = useRoute()
 const { proxy } = getCurrentInstance()
@@ -134,6 +145,8 @@ const applyOpen = ref(false)
 const detailOpen = ref(false)
 const detailId = ref('')
 const actionId = ref('')
+const deviceOptions = ref([])
+const applicantOptions = ref([])
 
 const approvalMode = computed(() => route.query.mode === 'approval')
 const statusOptions = [
@@ -176,6 +189,28 @@ function requestQuery() {
     sortBy: queryParams.sortBy,
     sortDirection: queryParams.sortDirection
   }
+}
+
+function deviceLabel(id) {
+  return deviceOptions.value.find(item => item.id === String(id))?.label || `设备 ${id}`
+}
+
+function applicantLabel(id) {
+  return applicantOptions.value.find(item => item.id === String(id))?.label || `用户 ${id}`
+}
+
+async function loadOptions() {
+  const tasks = [listReservationDevices({ pageNum: 1, pageSize: 500, sortBy: 'assetNo', sortDirection: 'asc' }).then(response => {
+    deviceOptions.value = (response.rows || []).map(item => ({ id: String(item.id), label: `${item.assetNo} · ${item.name}` }))
+  })]
+  if (approvalMode.value) {
+    tasks.push(listLabUserOptions({ roleKey: 'lab_student' }).then(response => {
+      applicantOptions.value = (response.data || []).map(item => ({ id: String(item.id), label: `${item.displayName || item.userName}（${item.userName}）` }))
+    }))
+  } else {
+    applicantOptions.value = []
+  }
+  await Promise.allSettled(tasks)
 }
 
 async function getList() {
@@ -286,6 +321,7 @@ watch(approvalMode, value => {
   queryParams.status = value ? 'PENDING' : ''
   queryParams.applicantId = ''
   queryParams.pageNum = 1
+  loadOptions()
   getList()
 }, { immediate: true })
 </script>

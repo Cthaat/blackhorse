@@ -13,6 +13,7 @@ import com.ruoyi.lab.domain.LabInspectionPlan;
 import com.ruoyi.lab.domain.LabInspectionPlanItem;
 import com.ruoyi.lab.mapper.LabInspectionPlanItemMapper;
 import com.ruoyi.lab.mapper.LabInspectionPlanMapper;
+import com.ruoyi.lab.mapper.LabOptionsMapper;
 import com.ruoyi.lab.security.LabDataScopeService;
 import com.ruoyi.lab.security.LabObjectPermissionService;
 import com.ruoyi.lab.service.impl.InspectionPlanServiceImpl;
@@ -37,7 +38,8 @@ class InspectionPlanDetailServiceTest
         InspectionPlanService service = new InspectionPlanServiceImpl(planMapper, itemMapper,
                 mock(LabDataScopeService.class), permissions,
                 mock(LabStatusHistoryService.class), Clock.fixed(
-                        Instant.parse("2026-09-03T04:00:00Z"), ZoneId.of("Asia/Shanghai")));
+                        Instant.parse("2026-09-03T04:00:00Z"), ZoneId.of("Asia/Shanghai")),
+                mock(LabUserDirectory.class), mock(LabOptionsMapper.class));
 
         InspectionPlanDetailVo detail = service.get(10L);
 

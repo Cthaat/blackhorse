@@ -9,6 +9,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="userId" column="user_id" />
         <result property="scopeType" column="scope_type" />
         <result property="scopeId" column="scope_id" />
+        <result property="laboratoryId" column="laboratory_id" />
+        <result property="laboratoryName" column="laboratory_name" />
         <result property="validFrom" column="valid_from" />
         <result property="validUntil" column="valid_until" />
         <result property="revokedAt" column="revoked_at" />
@@ -22,7 +24,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="QualificationColumns">
-        q.id, q.user_id, q.scope_type, q.scope_id, q.valid_from, q.valid_until,
+        q.id, q.user_id, q.scope_type, q.scope_id, q.laboratory_id,
+        (select l.name from lab_laboratory l where l.id = q.laboratory_id) as laboratory_name,
+        q.valid_from, q.valid_until,
         q.revoked_at, q.revoke_reason, q.version, q.create_by, q.create_time,
         q.update_by, q.update_time, q.del_flag
     </sql>
@@ -33,19 +37,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                 <!-- unrestricted scope -->
             </when>
             <when test="scope != null and scope.restricted() and scope.laboratoryIds != null and !scope.laboratoryIds.isEmpty()">
-                and (
-                    (q.scope_type = 'LABORATORY' and exists (
-                        select 1
-                        from lab_laboratory scoped_laboratory
-                        where cast(scoped_laboratory.id as char) = q.scope_id
-                          and scoped_laboratory.del_flag = '0'
-                          and scoped_laboratory.id in
-                          <foreach collection="scope.laboratoryIds" item="scopeLaboratoryId" open="(" separator="," close=")">
-                              #{scopeLaboratoryId}
-                          </foreach>
-                    ))
-                    or q.scope_type = 'DEVICE_CATEGORY'
-                )
+                and q.laboratory_id in
+                <foreach collection="scope.laboratoryIds" item="scopeLaboratoryId" open="(" separator="," close=")">
+                    #{scopeLaboratoryId}
+                </foreach>
             </when>
             <otherwise>
                 and 1 = 0
@@ -106,6 +101,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         set user_id = #{qualification.userId},
             scope_type = #{qualification.scopeType},
             scope_id = #{qualification.scopeId},
+            laboratory_id = #{qualification.laboratoryId},
             valid_from = #{qualification.validFrom},
             valid_until = #{qualification.validUntil},
             update_by = #{qualification.updateBy},
@@ -137,10 +133,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
           and q.valid_from &lt;= #{at}
           and #{at} &lt; q.valid_until
           and q.revoked_at is null
-          and (
-              (q.scope_type = 'LABORATORY' and q.scope_id = cast(d.laboratory_id as char))
-              or (q.scope_type = 'DEVICE_CATEGORY' and q.scope_id = d.category_code)
-          )
+          and q.laboratory_id = d.laboratory_id
+          and ((q.scope_type = 'LABORATORY'
+                and binary q.scope_id = binary cast(d.laboratory_id as char))
+            or (q.scope_type = 'DEVICE_CATEGORY' and q.scope_id = d.category_code))
     </select>
 
 </mapper>

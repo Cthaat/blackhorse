@@ -19,6 +19,7 @@ import com.ruoyi.lab.security.LabDataScopeService;
 import com.ruoyi.lab.security.LabObjectPermissionService;
 import com.ruoyi.lab.service.LabSortWhitelist;
 import com.ruoyi.lab.service.LabStatusHistoryService;
+import com.ruoyi.lab.service.LabUserDirectory;
 import com.ruoyi.lab.service.QualificationService;
 import com.ruoyi.lab.vo.QualificationVo;
 import org.springframework.stereotype.Service;
@@ -40,11 +41,12 @@ public class QualificationServiceImpl implements QualificationService
     private final LabSortWhitelist sortWhitelist;
     private final LabStatusHistoryService historyService;
     private final Clock clock;
+    private final LabUserDirectory userDirectory;
 
     public QualificationServiceImpl(LabQualificationMapper qualificationMapper,
             LabDictionaryMapper dictionaryMapper, LabDataScopeService dataScopeService,
             LabObjectPermissionService objectPermissionService, LabSortWhitelist sortWhitelist,
-            LabStatusHistoryService historyService, Clock clock)
+            LabStatusHistoryService historyService, Clock clock, LabUserDirectory userDirectory)
     {
         this.qualificationMapper = qualificationMapper;
         this.dictionaryMapper = dictionaryMapper;
@@ -53,6 +55,7 @@ public class QualificationServiceImpl implements QualificationService
         this.sortWhitelist = sortWhitelist;
         this.historyService = historyService;
         this.clock = clock;
+        this.userDirectory = userDirectory;
     }
 
     @Override
@@ -101,14 +104,18 @@ public class QualificationServiceImpl implements QualificationService
     {
         Objects.requireNonNull(input, "input");
         String operator = requireUsername(username);
-        LabDataScope actorScope = requireActorScope(actorId);
-        String scopeId = validateTargetScope(input.getScopeType(), input.getScopeId(), actorScope);
+        requireActorScope(actorId);
+        TargetScope targetScope = validateTargetScope(input.getScopeType(), input.getScopeId(),
+                input.getLaboratoryId());
         validateValidity(input.getValidFrom(), input.getValidUntil());
 
         LabQualification qualification = new LabQualification();
-        qualification.setUserId(requirePositive(input.getUserId(), "用户编号无效"));
+        long qualifiedUserId = requirePositive(input.getUserId(), "用户编号无效");
+        userDirectory.assertActiveRole(qualifiedUserId, "lab_student");
+        qualification.setUserId(qualifiedUserId);
         qualification.setScopeType(input.getScopeType());
-        qualification.setScopeId(scopeId);
+        qualification.setScopeId(targetScope.scopeId());
+        qualification.setLaboratoryId(targetScope.laboratoryId());
         qualification.setValidFrom(input.getValidFrom());
         qualification.setValidUntil(input.getValidUntil());
         qualification.setVersion(0);
@@ -135,10 +142,11 @@ public class QualificationServiceImpl implements QualificationService
         String operator = requireUsername(username);
 
         assertManagementAccess(requireActive(id));
-        LabDataScope actorScope = requireActorScope(actorId);
+        requireActorScope(actorId);
         LabQualification locked = requireLocked(id);
         assertManagementAccess(locked);
-        String scopeId = validateTargetScope(input.getScopeType(), input.getScopeId(), actorScope);
+        TargetScope targetScope = validateTargetScope(input.getScopeType(), input.getScopeId(),
+                input.getLaboratoryId());
         validateValidity(input.getValidFrom(), input.getValidUntil());
 
         LocalDateTime now = LocalDateTime.now(clock);
@@ -147,9 +155,12 @@ public class QualificationServiceImpl implements QualificationService
 
         LabQualification update = new LabQualification();
         update.setId(id);
-        update.setUserId(requirePositive(input.getUserId(), "用户编号无效"));
+        long qualifiedUserId = requirePositive(input.getUserId(), "用户编号无效");
+        userDirectory.assertActiveRole(qualifiedUserId, "lab_student");
+        update.setUserId(qualifiedUserId);
         update.setScopeType(input.getScopeType());
-        update.setScopeId(scopeId);
+        update.setScopeId(targetScope.scopeId());
+        update.setLaboratoryId(targetScope.laboratoryId());
         update.setValidFrom(input.getValidFrom());
         update.setValidUntil(input.getValidUntil());
         update.setUpdateBy(operator);
@@ -256,47 +267,48 @@ public class QualificationServiceImpl implements QualificationService
 
     private void assertManagementAccess(LabQualification qualification)
     {
+        long laboratoryId = requirePositive(qualification.getLaboratoryId(), "实验室编号无效");
         if (qualification.getScopeType() == QualificationScopeType.LABORATORY)
         {
-            objectPermissionService.assertLaboratoryManageable(
-                    parseLaboratoryScopeId(qualification.getScopeId()));
+            if (parseLaboratoryScopeId(qualification.getScopeId()) != laboratoryId)
+            {
+                throw validation("资格实验室范围数据不一致");
+            }
+            objectPermissionService.assertLaboratoryManageable(laboratoryId);
             return;
         }
         if (qualification.getScopeType() == QualificationScopeType.DEVICE_CATEGORY)
         {
-            LabDataScope scope = dataScopeService.resolveCurrentScope();
-            if (scope.empty())
-            {
-                throw outOfScope();
-            }
+            objectPermissionService.assertLaboratoryManageable(laboratoryId);
             return;
         }
         throw outOfScope();
     }
 
-    private String validateTargetScope(QualificationScopeType scopeType, String rawScopeId,
-            LabDataScope actorScope)
+    private TargetScope validateTargetScope(QualificationScopeType scopeType, String rawScopeId,
+            Long rawLaboratoryId)
     {
         if (scopeType == null)
         {
             throw validation("资格范围类型不能为空");
         }
         String scopeId = requireTrimmedLength(rawScopeId, 64, "资格范围编号无效");
+        long laboratoryId = requirePositive(rawLaboratoryId, "实验室编号无效");
+        objectPermissionService.assertLaboratoryManageable(laboratoryId);
         if (scopeType == QualificationScopeType.LABORATORY)
         {
-            long laboratoryId = parseLaboratoryScopeId(scopeId);
-            objectPermissionService.assertLaboratoryManageable(laboratoryId);
-            return Long.toString(laboratoryId);
-        }
-        if (actorScope.empty())
-        {
-            throw outOfScope();
+            long scopeLaboratoryId = parseLaboratoryScopeId(scopeId);
+            if (scopeLaboratoryId != laboratoryId)
+            {
+                throw validation("资格范围必须与所选实验室一致");
+            }
+            return new TargetScope(Long.toString(laboratoryId), laboratoryId);
         }
         if (dictionaryMapper.countEnabledValue(DEVICE_CATEGORY_DICT_TYPE, scopeId) <= 0)
         {
             throw validation("设备类别字典值不存在或已停用");
         }
-        return scopeId;
+        return new TargetScope(scopeId, laboratoryId);
     }
 
     private LabDataScope requireActorScope(Long actorId)
@@ -417,5 +429,9 @@ public class QualificationServiceImpl implements QualificationService
     {
         return new LabBusinessException(LabErrorCode.LAB_DUPLICATE_OPERATION,
                 "资格已被其他请求修改");
+    }
+
+    private record TargetScope(String scopeId, long laboratoryId)
+    {
     }
 }

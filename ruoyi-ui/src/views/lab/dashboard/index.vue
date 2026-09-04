@@ -39,19 +39,24 @@ import { computed, defineComponent, h, ref } from 'vue'
 import { ElCard, ElEmpty, ElProgress, ElTag } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { getDashboardSummary } from '@/api/lab/dashboard'
+import useUserStore from '@/store/modules/user'
 
 const router = useRouter()
+const userStore = useUserStore()
 const loading = ref(false)
 const dateRange = ref([])
 const summary = ref({})
-const todoCards = [
-  { key: 'pendingReservations', label: '待处理预约', path: '/lab/reservations/approval' },
-  { key: 'openUsage', label: '未归还领用', path: '/lab/usage' },
-  { key: 'openRepairs', label: '未关闭维修', path: '/lab/repair' },
-  { key: 'pendingInspections', label: '待执行巡检', path: '/lab/safety/inspection-tasks' },
-  { key: 'openHazards', label: '未销号隐患', path: '/lab/safety/hazards' },
-  { key: 'unreadNotifications', label: '未读消息', path: '/lab/notifications' }
+const dashboardCards = [
+  { key: 'pendingReservations', label: '待处理预约', path: '/lab/reservations/approval', permission: 'lab:reservation:list' },
+  { key: 'openUsage', label: '未归还领用', path: '/lab/usage', permission: 'lab:usage:list' },
+  { key: 'openRepairs', label: '未关闭维修', path: '/lab/repair', permission: 'lab:repair:list' },
+  { key: 'pendingInspections', label: '待执行巡检', path: '/lab/safety/inspection-tasks', permission: 'lab:inspection:task:list' },
+  { key: 'openHazards', label: '未销号隐患', path: '/lab/safety/hazards', permission: 'lab:hazard:list' },
+  { key: 'unreadNotifications', label: '未读消息', path: '/lab/notifications', permission: 'lab:notification:list' }
 ]
+const todoCards = computed(() => dashboardCards.filter(card => userStore.permissions.some(permission =>
+  permission === '*:*:*' || permission === card.permission
+)))
 const closureRate = computed(() => Math.min(100, Math.max(0, Number(summary.value.hazardClosureRate || 0))))
 
 const MetricPanel = defineComponent({

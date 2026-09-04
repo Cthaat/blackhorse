@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.lab.mapper.LabOptionsMapper">
+
+    <select id="selectActiveUserOptions" resultType="com.ruoyi.lab.vo.LabUserOptionVo">
+        select u.user_id as id, u.user_name as userName,
+               coalesce(nullif(u.nick_name, ''), u.user_name) as displayName,
+               d.dept_name as departmentName
+        from sys_user u
+        left join sys_dept d on d.dept_id = u.dept_id
+            and d.status = '0' and d.del_flag = '0'
+        where u.status = '0' and u.del_flag = '0'
+          and exists (
+              select 1
+              from sys_user_role ur
+              inner join sys_role r on r.role_id = ur.role_id
+              where ur.user_id = u.user_id
+                and r.status = '0' and r.del_flag = '0'
+                <choose>
+                    <when test="roleKey != null and roleKey != ''">
+                        and r.role_key = #{roleKey}
+                    </when>
+                    <otherwise>
+                        and r.role_key in ('lab_student', 'lab_manager', 'lab_safety_officer',
+                            'lab_repair_worker', 'lab_system_admin')
+                    </otherwise>
+                </choose>
+          )
+        <if test="keyword != null and keyword != ''">
+            and (u.user_name like concat('%', #{keyword}, '%')
+              or u.nick_name like concat('%', #{keyword}, '%')
+              or d.dept_name like concat('%', #{keyword}, '%'))
+        </if>
+        order by u.user_id
+        limit 100
+    </select>
+
+    <select id="selectActiveDepartmentOptions" resultType="com.ruoyi.lab.vo.LabDepartmentOptionVo">
+        select d.dept_id as id, d.dept_name as name
+        from sys_dept d
+        where d.status = '0' and d.del_flag = '0'
+        <if test="!allDepartments">
+            <choose>
+                <when test="departmentIds != null and !departmentIds.isEmpty()">
+                    and d.dept_id in
+                    <foreach collection="departmentIds" item="departmentId" open="(" separator="," close=")">
+                        #{departmentId}
+                    </foreach>
+                </when>
+                <otherwise>and 1 = 0</otherwise>
+            </choose>
+        </if>
+        order by d.order_num, d.dept_id
+        limit 100
+    </select>
+
+    <select id="countActiveUserRole" resultType="int">
+        select count(1)
+        from sys_user u
+        inner join sys_user_role ur on ur.user_id = u.user_id
+        inner join sys_role r on r.role_id = ur.role_id
+        where u.user_id = #{userId}
+          and u.status = '0' and u.del_flag = '0'
+          and r.role_key = #{roleKey}
+          and r.status = '0' and r.del_flag = '0'
+    </select>
+
+    <select id="countActiveUserLaboratoryScope" resultType="int">
+        select count(1)
+        from lab_laboratory l
+        where l.id = #{laboratoryId}
+          and l.del_flag = '0'
+          and exists (
+              select 1
+              from sys_user active_user
+              where active_user.user_id = #{userId}
+                and active_user.status = '0'
+                and active_user.del_flag = '0'
+          )
+          and (
+              #{userId} = 1
+              or exists (
+                  select 1
+                  from sys_user_role ur
+                  inner join sys_role r on r.role_id = ur.role_id
+                  inner join sys_user u on u.user_id = ur.user_id
+                  where ur.user_id = #{userId}
+                    and r.status = '0'
+                    and r.del_flag = '0'
+                    and r.role_key in ('lab_manager', 'lab_safety_officer')
+                    and u.status = '0'
+                    and u.del_flag = '0'
+                    and (
+                        r.data_scope = '1'
+                        or (r.data_scope = '2' and exists (
+                            select 1
+                            from sys_role_dept rd
+                            where rd.role_id = r.role_id
+                              and rd.dept_id = l.dept_id
+                        ))
+                        or (r.data_scope = '3' and l.dept_id = u.dept_id)
+                        or (r.data_scope = '4' and exists (
+                            select 1
+                            from sys_dept scoped_dept
+                            where scoped_dept.dept_id = l.dept_id
+                              and scoped_dept.status = '0'
+                              and scoped_dept.del_flag = '0'
+                              and (scoped_dept.dept_id = u.dept_id
+                                  or find_in_set(u.dept_id, scoped_dept.ancestors) > 0)
+                        ))
+                        or (r.data_scope = '5' and l.manager_id = #{userId})
+                    )
+              )
+          )
+    </select>
+
+    <select id="countActiveUserDepartmentScope" resultType="int">
+        select count(1)
+        from sys_dept target_dept
+        where target_dept.dept_id = #{departmentId}
+          and target_dept.status = '0'
+          and target_dept.del_flag = '0'
+          and exists (
+              select 1
+              from sys_user active_user
+              where active_user.user_id = #{userId}
+                and active_user.status = '0'
+                and active_user.del_flag = '0'
+          )
+          and (
+              #{userId} = 1
+              or exists (
+                  select 1
+                  from sys_user_role ur
+                  inner join sys_role r on r.role_id = ur.role_id
+                  inner join sys_user u on u.user_id = ur.user_id
+                  where ur.user_id = #{userId}
+                    and r.status = '0'
+                    and r.del_flag = '0'
+                    and r.role_key in ('lab_manager', 'lab_safety_officer')
+                    and u.status = '0'
+                    and u.del_flag = '0'
+                    and (
+                        r.data_scope = '1'
+                        or (r.data_scope = '2' and exists (
+                            select 1
+                            from sys_role_dept rd
+                            where rd.role_id = r.role_id
+                              and rd.dept_id = target_dept.dept_id
+                        ))
+                        or (r.data_scope = '3' and target_dept.dept_id = u.dept_id)
+                        or (r.data_scope = '4'
+                            and (target_dept.dept_id = u.dept_id
+                                or find_in_set(u.dept_id, target_dept.ancestors) > 0))
+                        or r.data_scope = '5'
+                    )
+              )
+          )
+    </select>
+
+    <select id="countActiveBusinessParticipant" resultType="int">
+        select count(1)
+        from sys_user u
+        inner join sys_user_role ur on ur.user_id = u.user_id
+        inner join sys_role r on r.role_id = ur.role_id
+        where u.user_id = #{userId}
+          and u.status = '0' and u.del_flag = '0'
+          and r.role_key in ('lab_student', 'lab_manager', 'lab_safety_officer',
+              'lab_repair_worker')
+          and r.status = '0' and r.del_flag = '0'
+    </select>
+
+    <select id="countActiveDepartment" resultType="int">
+        select count(1)
+        from sys_dept d
+        where d.dept_id = #{departmentId}
+          and d.status = '0' and d.del_flag = '0'
+    </select>
+
+</mapper>

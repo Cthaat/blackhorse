@@ -16,10 +16,12 @@ import com.ruoyi.lab.exception.LabBusinessException;
 import com.ruoyi.lab.exception.LabErrorCode;
 import com.ruoyi.lab.mapper.LabInspectionPlanItemMapper;
 import com.ruoyi.lab.mapper.LabInspectionPlanMapper;
+import com.ruoyi.lab.mapper.LabOptionsMapper;
 import com.ruoyi.lab.security.LabDataScopeService;
 import com.ruoyi.lab.security.LabObjectPermissionService;
 import com.ruoyi.lab.service.InspectionPlanService;
 import com.ruoyi.lab.service.LabStatusHistoryService;
+import com.ruoyi.lab.service.LabUserDirectory;
 import com.ruoyi.lab.vo.InspectionPlanDetailVo;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,11 +38,13 @@ public class InspectionPlanServiceImpl implements InspectionPlanService
     private final LabObjectPermissionService permissionService;
     private final LabStatusHistoryService historyService;
     private final Clock clock;
+    private final LabUserDirectory userDirectory;
+    private final LabOptionsMapper optionsMapper;
 
     public InspectionPlanServiceImpl(LabInspectionPlanMapper planMapper,
             LabInspectionPlanItemMapper itemMapper, LabDataScopeService dataScopeService,
             LabObjectPermissionService permissionService, LabStatusHistoryService historyService,
-            Clock clock)
+            Clock clock, LabUserDirectory userDirectory, LabOptionsMapper optionsMapper)
     {
         this.planMapper = planMapper;
         this.itemMapper = itemMapper;
@@ -48,6 +52,8 @@ public class InspectionPlanServiceImpl implements InspectionPlanService
         this.permissionService = permissionService;
         this.historyService = historyService;
         this.clock = clock;
+        this.userDirectory = userDirectory;
+        this.optionsMapper = optionsMapper;
     }
 
     @Override
@@ -58,6 +64,7 @@ public class InspectionPlanServiceImpl implements InspectionPlanService
         validate(command);
         requireActor(actorId, actorName);
         permissionService.assertLaboratoryManageable(command.laboratoryId());
+        assertSafetyOwner(command.ownerId(), command.laboratoryId());
         LabInspectionPlan plan = from(command, now, actorName);
         plan.setStatus(InspectionPlanStatus.DISABLED);
         plan.setVersion(0);
@@ -88,6 +95,7 @@ public class InspectionPlanServiceImpl implements InspectionPlanService
         {
             throw duplicate();
         }
+        assertSafetyOwner(command.ownerId(), command.laboratoryId());
         LocalDateTime now = LocalDateTime.now(clock);
         LabInspectionPlan changed = from(command, now, actorName);
         changed.setId(planId);
@@ -153,6 +161,10 @@ public class InspectionPlanServiceImpl implements InspectionPlanService
                         || itemMapper.countEnabledByPlan(planId) < 1))
         {
             throw validation("巡检计划缺少负责人或启用检查项");
+        }
+        if (target == InspectionPlanStatus.ENABLED)
+        {
+            assertSafetyOwner(plan.getOwnerId(), plan.getLaboratoryId());
         }
         LocalDateTime now = LocalDateTime.now(clock);
         if (planMapper.updateStatusConditionally(planId, expected.name(), target.name(),
@@ -264,6 +276,15 @@ public class InspectionPlanServiceImpl implements InspectionPlanService
                 || permissionService.currentUserId() != actorId)
         {
             throw new LabBusinessException(LabErrorCode.ACCESS_DENIED, "当前用户无权执行该操作");
+        }
+    }
+
+    private void assertSafetyOwner(Long ownerId, Long laboratoryId)
+    {
+        userDirectory.assertActiveRole(ownerId, "lab_safety_officer");
+        if (optionsMapper.countActiveUserLaboratoryScope(ownerId, laboratoryId) <= 0)
+        {
+            throw validation("所选巡检负责人无权管理目标实验室");
         }
     }
 

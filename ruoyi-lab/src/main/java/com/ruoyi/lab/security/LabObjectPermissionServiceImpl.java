@@ -1,5 +1,7 @@
 package com.ruoyi.lab.security;
 
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -19,13 +21,15 @@ public class LabObjectPermissionServiceImpl implements LabObjectPermissionServic
     private final LabDataScopeService dataScopeService;
     private final LabLaboratoryMapper laboratoryMapper;
     private final LabDeviceMapper deviceMapper;
+    private final Clock clock;
 
     public LabObjectPermissionServiceImpl(LabDataScopeService dataScopeService,
-            LabLaboratoryMapper laboratoryMapper, LabDeviceMapper deviceMapper)
+            LabLaboratoryMapper laboratoryMapper, LabDeviceMapper deviceMapper, Clock clock)
     {
         this.dataScopeService = dataScopeService;
         this.laboratoryMapper = laboratoryMapper;
         this.deviceMapper = deviceMapper;
+        this.clock = clock;
     }
 
     @Override
@@ -43,13 +47,24 @@ public class LabObjectPermissionServiceImpl implements LabObjectPermissionServic
     @Override
     public void assertDeviceReadable(long deviceId)
     {
-        requireDevice(deviceId, dataScopeService.resolveCurrentScope());
+        LabDataScope scope = dataScopeService.resolveCurrentScope();
+        LabDevice device = deviceMapper.selectByIdReadable(deviceId, scope, scope.userId(),
+                LocalDateTime.now(clock));
+        if (device != null)
+        {
+            return;
+        }
+        if (scope.allLaboratories())
+        {
+            throw new LabBusinessException(LabErrorCode.RESOURCE_NOT_FOUND, "设备不存在");
+        }
+        throw outOfScope();
     }
 
     @Override
     public void assertDeviceManageable(long deviceId)
     {
-        assertDeviceReadable(deviceId);
+        requireDevice(deviceId, dataScopeService.resolveCurrentScope());
     }
 
     @Override

@@ -35,12 +35,15 @@ export function getQualification(id) {
 }
 
 function qualificationPayload(data) {
-  const payload = withStringIds(data, ['userId'])
+  const payload = withStringIds(data, ['userId', 'laboratoryId'])
   if (typeof payload.scopeId !== 'string' || payload.scopeId.trim() === '') {
     throw new TypeError('scopeId must be a non-empty string')
   }
   if (payload.scopeType === 'LABORATORY') {
     payload.scopeId = requireStringId(payload.scopeId, 'scopeId')
+    if (payload.scopeId !== payload.laboratoryId) {
+      throw new TypeError('scopeId must match laboratoryId for laboratory qualifications')
+    }
   }
   return payload
 }

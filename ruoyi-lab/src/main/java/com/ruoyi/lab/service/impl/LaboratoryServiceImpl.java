@@ -2,6 +2,7 @@ package com.ruoyi.lab.service.impl;
 
 import java.util.List;
 import java.util.Objects;
+import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.lab.domain.LabLaboratory;
 import com.ruoyi.lab.domain.LaboratoryStatus;
 import com.ruoyi.lab.dto.LaboratoryCreateDto;
@@ -9,11 +10,14 @@ import com.ruoyi.lab.dto.LaboratoryUpdateDto;
 import com.ruoyi.lab.exception.LabBusinessException;
 import com.ruoyi.lab.exception.LabErrorCode;
 import com.ruoyi.lab.mapper.LabLaboratoryMapper;
+import com.ruoyi.lab.mapper.LabOptionsMapper;
 import com.ruoyi.lab.security.LabDataScope;
 import com.ruoyi.lab.security.LabDataScopeService;
 import com.ruoyi.lab.security.LabObjectPermissionService;
 import com.ruoyi.lab.service.LabSortWhitelist;
 import com.ruoyi.lab.service.LabStatusHistoryService;
+import com.ruoyi.lab.service.LabUserDirectory;
+import com.ruoyi.lab.service.DeviceAvailabilityService;
 import com.ruoyi.lab.service.LaboratoryService;
 import com.ruoyi.lab.vo.LaboratoryVo;
 import org.springframework.stereotype.Service;
@@ -30,17 +34,25 @@ public class LaboratoryServiceImpl implements LaboratoryService
     private final LabObjectPermissionService objectPermissionService;
     private final LabSortWhitelist sortWhitelist;
     private final LabStatusHistoryService historyService;
+    private final LabOptionsMapper optionsMapper;
+    private final DeviceAvailabilityService availabilityService;
+    private final LabUserDirectory userDirectory;
 
     public LaboratoryServiceImpl(LabLaboratoryMapper laboratoryMapper,
             LabDataScopeService dataScopeService,
             LabObjectPermissionService objectPermissionService,
-            LabSortWhitelist sortWhitelist, LabStatusHistoryService historyService)
+            LabSortWhitelist sortWhitelist, LabStatusHistoryService historyService,
+            LabOptionsMapper optionsMapper, DeviceAvailabilityService availabilityService,
+            LabUserDirectory userDirectory)
     {
         this.laboratoryMapper = laboratoryMapper;
         this.dataScopeService = dataScopeService;
         this.objectPermissionService = objectPermissionService;
         this.sortWhitelist = sortWhitelist;
         this.historyService = historyService;
+        this.optionsMapper = optionsMapper;
+        this.availabilityService = availabilityService;
+        this.userDirectory = userDirectory;
     }
 
     @Override
@@ -75,11 +87,8 @@ public class LaboratoryServiceImpl implements LaboratoryService
         {
             throw outOfScope();
         }
-        if (!scope.allLaboratories()
-                && !objectPermissionService.readableDepartmentIds().contains(input.getDeptId()))
-        {
-            throw outOfScope();
-        }
+        assertDepartmentUsable(input.getDeptId(), actorId);
+        assertManagerCanManageDepartment(input.getManagerId(), input.getDeptId());
 
         LabLaboratory laboratory = details(input.getLabCode(), input.getName(), input.getDeptId(),
                 input.getManagerId(), input.getLocation(), input.getDescription(), username);
@@ -101,11 +110,8 @@ public class LaboratoryServiceImpl implements LaboratoryService
         long id = requirePositive(laboratoryId);
         objectPermissionService.assertLaboratoryManageable(id);
         LabDataScope scope = dataScopeService.resolveCurrentScope();
-        if (!scope.allLaboratories()
-                && !objectPermissionService.readableDepartmentIds().contains(input.getDeptId()))
-        {
-            throw outOfScope();
-        }
+        assertDepartmentUsable(input.getDeptId(), scope.userId());
+        assertManagerCanManageDepartment(input.getManagerId(), input.getDeptId());
         LabLaboratory laboratory = details(input.getLabCode(), input.getName(), input.getDeptId(),
                 input.getManagerId(), input.getLocation(), input.getDescription(), username);
         laboratory.setId(id);
@@ -159,6 +165,10 @@ public class LaboratoryServiceImpl implements LaboratoryService
             throw duplicateOperation();
         }
         historyService.append(OBJECT_TYPE, id, current.name(), target.name(), actorId, normalizedReason);
+        if (target == LaboratoryStatus.ENABLED)
+        {
+            availabilityService.restoreAfterLaboratoryEnabled(id, actorId);
+        }
     }
 
     private LabLaboratory requireInScope(long id, LabDataScope scope)
@@ -173,6 +183,30 @@ public class LaboratoryServiceImpl implements LaboratoryService
             throw new LabBusinessException(LabErrorCode.RESOURCE_NOT_FOUND, "实验室不存在");
         }
         throw outOfScope();
+    }
+
+    private void assertDepartmentUsable(Long departmentId, Long actorId)
+    {
+        long id = requirePositive(departmentId);
+        if (optionsMapper.countActiveDepartment(id) <= 0)
+        {
+            throw new LabBusinessException(LabErrorCode.VALIDATION_ERROR, "部门不存在或已停用");
+        }
+        if (!SecurityUtils.isAdmin(actorId)
+                && !objectPermissionService.readableDepartmentIds().contains(id))
+        {
+            throw outOfScope();
+        }
+    }
+
+    private void assertManagerCanManageDepartment(Long managerId, Long departmentId)
+    {
+        userDirectory.assertActiveRole(managerId, "lab_manager");
+        if (optionsMapper.countActiveUserDepartmentScope(managerId, departmentId) <= 0)
+        {
+            throw new LabBusinessException(LabErrorCode.VALIDATION_ERROR,
+                    "所选实验室负责人无权管理目标部门");
+        }
     }
 
     private static LabLaboratory details(String code, String name, Long departmentId,

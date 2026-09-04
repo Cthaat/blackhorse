@@ -118,6 +118,7 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
         {
             throw new LabBusinessException(LabErrorCode.RESOURCE_NOT_FOUND, "设备不存在");
         }
+        objectPermissionService.assertDeviceReadable(device.getId());
         if (existing != null && !isUnexpired(existing, now))
         {
             reservationMapper.clearExpiredIdempotency(existing.getId(), applicantId, key, now);
@@ -202,6 +203,10 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
         LockedReservation locked = lockReservationDeviceFirst(reservationId);
         objectPermissionService.assertDeviceManageable(locked.device().getId());
         requirePositive(approverId, "用户编号无效");
+        if (Objects.equals(locked.reservation().getApplicantId(), approverId))
+        {
+            throw new LabBusinessException(LabErrorCode.ACCESS_DENIED, "不能驳回本人预约");
+        }
         stateMachine.assertTransition(locked.reservation().getStatus(), ReservationStatus.REJECTED);
         assertExpectedVersion(command == null ? null : command.getExpectedVersion(),
                 locked.reservation().getVersion());

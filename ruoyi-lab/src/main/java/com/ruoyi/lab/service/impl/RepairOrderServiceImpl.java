@@ -194,7 +194,7 @@ public class RepairOrderServiceImpl implements RepairOrderService
                 RepairStatus.IN_PROGRESS.name(), RepairStatus.WAIT_ACCEPTANCE.name(),
                 actorId, result, now, Long.toString(actorId)));
         historyService.append("REPAIR_ORDER", id, RepairStatus.IN_PROGRESS.name(),
-                RepairStatus.WAIT_ACCEPTANCE.name(), actorId, "维修人员提交处理结果");
+                RepairStatus.WAIT_ACCEPTANCE.name(), actorId, result);
         return RepairOrderVo.from(requireOrder(id));
     }
 
@@ -230,8 +230,7 @@ public class RepairOrderServiceImpl implements RepairOrderService
                 RepairStatus.WAIT_ACCEPTANCE.name(), target.name(), result, reason,
                 actorId, now, Long.toString(actorId)));
         historyService.append("REPAIR_ORDER", id, RepairStatus.WAIT_ACCEPTANCE.name(),
-                target.name(), actorId,
-                command.passed() ? "维修结果验收通过" : "维修结果验收退回");
+                target.name(), actorId, reason);
         if (command.passed())
         {
             availabilityService.restoreAfterRepair(device.getId(), actorId);

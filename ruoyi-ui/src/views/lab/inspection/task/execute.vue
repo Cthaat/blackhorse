@@ -4,9 +4,9 @@
     <el-card v-if="task" class="task-card" shadow="never">
       <el-descriptions :column="3" border>
         <el-descriptions-item label="任务编号">{{ task.taskNo }}</el-descriptions-item>
-        <el-descriptions-item label="实验室ID">{{ task.laboratoryId }}</el-descriptions-item>
+        <el-descriptions-item label="实验室">{{ laboratoryLabel }}</el-descriptions-item>
         <el-descriptions-item label="状态"><el-tag :type="task.status === 'COMPLETED' ? 'success' : 'primary'">{{ task.status }}</el-tag></el-descriptions-item>
-        <el-descriptions-item label="负责人ID">{{ task.assigneeId }}</el-descriptions-item>
+        <el-descriptions-item label="负责人">{{ assigneeLabel }}</el-descriptions-item>
         <el-descriptions-item label="截止时间">{{ parseTime(task.deadlineAt) }}</el-descriptions-item>
         <el-descriptions-item label="超期">{{ task.overdueFlag === '1' ? '是' : '否' }}</el-descriptions-item>
       </el-descriptions>
@@ -29,8 +29,14 @@
           <el-form-item label="问题描述"><el-input v-model="drafts[item.id].description" type="textarea" :rows="3" maxlength="1000" show-word-limit :disabled="readonly" /></el-form-item>
           <el-row :gutter="12">
             <el-col :span="8"><el-form-item label="严重级别"><el-select v-model="drafts[item.id].severity" :disabled="readonly"><el-option label="一般" value="NORMAL" /><el-option label="重大" value="MAJOR" /></el-select></el-form-item></el-col>
-            <el-col :span="8"><el-form-item label="目标类型"><el-select v-model="drafts[item.id].targetType" :disabled="readonly"><el-option label="实验室" value="LABORATORY" /><el-option label="设备" value="DEVICE" /></el-select></el-form-item></el-col>
-            <el-col :span="8"><el-form-item label="目标ID"><el-input v-model="drafts[item.id].targetId" :disabled="readonly" /></el-form-item></el-col>
+            <el-col :span="8"><el-form-item label="目标类型"><el-select v-model="drafts[item.id].targetType" :disabled="readonly" @change="drafts[item.id].targetId = ''"><el-option label="实验室" value="LABORATORY" /><el-option label="设备" value="DEVICE" /></el-select></el-form-item></el-col>
+            <el-col :span="8">
+              <el-form-item label="问题对象">
+                <el-select v-model="drafts[item.id].targetId" filterable :disabled="readonly" placeholder="请选择对象" style="width: 100%">
+                  <el-option v-for="option in targetOptions(drafts[item.id])" :key="option.id" :label="option.label" :value="option.id" />
+                </el-select>
+              </el-form-item>
+            </el-col>
           </el-row>
         </template>
         <el-form-item v-if="!readonly">
@@ -59,6 +65,9 @@ import {
   recordInspectionItem,
   startInspectionTask
 } from '@/api/lab/inspection'
+import { listDevice } from '@/api/lab/device'
+import { getLaboratory } from '@/api/lab/laboratory'
+import { listLabUserOptions } from '@/api/lab/options'
 
 const route = useRoute()
 const router = useRouter()
@@ -69,7 +78,36 @@ const savingId = ref()
 const task = ref()
 const items = ref([])
 const drafts = reactive({})
+const laboratory = ref()
+const deviceOptions = ref([])
+const userOptions = ref([])
 const readonly = computed(() => task.value?.status === 'COMPLETED')
+const laboratoryLabel = computed(() => laboratory.value
+  ? `${laboratory.value.labCode} · ${laboratory.value.name}`
+  : `实验室 ${task.value?.laboratoryId || '-'}`)
+const assigneeLabel = computed(() => userOptions.value.find(item => item.id === String(task.value?.assigneeId))?.label
+  || `用户 ${task.value?.assigneeId || '-'}`)
+
+function targetOptions(draft) {
+  if (draft.targetType === 'LABORATORY') {
+    return task.value ? [{ id: String(task.value.laboratoryId), label: laboratoryLabel.value }] : []
+  }
+  return deviceOptions.value
+}
+
+async function loadContextOptions() {
+  if (!task.value) return
+  const results = await Promise.allSettled([
+    getLaboratory(task.value.laboratoryId).then(response => { laboratory.value = response.data }),
+    listDevice({ pageNum: 1, pageSize: 500, laboratoryId: task.value.laboratoryId, sortBy: 'assetNo', sortDirection: 'asc' }).then(response => {
+      deviceOptions.value = (response.rows || []).map(item => ({ id: String(item.id), label: `${item.assetNo} · ${item.name}` }))
+    }),
+    listLabUserOptions({ roleKey: 'lab_safety_officer' }).then(response => {
+      userOptions.value = (response.data || []).map(item => ({ id: String(item.id), label: `${item.displayName || item.userName}（${item.userName}）` }))
+    })
+  ])
+  if (results.some(result => result.status === 'rejected')) proxy.$modal.msgWarning('部分巡检对象信息加载失败')
+}
 
 async function loadDetail() {
   loading.value = true
@@ -90,6 +128,7 @@ async function loadDetail() {
         version: item.version
       }
     })
+    await loadContextOptions()
   } finally { loading.value = false }
 }
 
@@ -105,7 +144,7 @@ async function startTask() {
 async function saveItem(item) {
   const draft = drafts[item.id]
   if (draft.result === 'FAIL' && (!draft.description.trim() || !draft.targetId)) {
-    proxy.$modal.msgWarning('不通过时必须填写问题描述和目标ID')
+    proxy.$modal.msgWarning('不通过时必须填写问题描述并选择问题对象')
     return
   }
   savingId.value = item.id

@@ -131,8 +131,18 @@ public class InspectionTaskServiceImpl implements InspectionTaskService
                 throw validation("巡检问题描述长度无效");
             }
             if (command.targetType().name().equals("DEVICE"))
+            {
                 permissionService.assertDeviceReadable(command.targetId());
-            else permissionService.assertLaboratoryReadable(command.targetId());
+                com.ruoyi.lab.domain.LabDevice target = deviceMapper.selectById(command.targetId());
+                if (target == null || !Objects.equals(target.getLaboratoryId(), task.getLaboratoryId()))
+                    throw validation("巡检隐患目标不属于当前任务实验室");
+            }
+            else
+            {
+                if (!Objects.equals(command.targetId(), task.getLaboratoryId()))
+                    throw validation("巡检隐患目标不属于当前任务实验室");
+                permissionService.assertLaboratoryReadable(command.targetId());
+            }
             item.setDescription(command.description().trim());
             item.setSeverity(command.severity());
             item.setTargetType(command.targetType());

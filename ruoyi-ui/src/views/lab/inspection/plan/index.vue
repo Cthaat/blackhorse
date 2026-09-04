@@ -1,5 +1,6 @@
 <template>
   <div class="app-container">
+    <el-alert v-if="optionsError" :title="optionsError" type="error" show-icon :closable="false" class="mb12" />
     <el-form v-show="showSearch" :model="query" inline>
       <el-form-item label="计划名称">
         <el-input v-model="query.keyword" clearable placeholder="计划名称" @keyup.enter="handleQuery" />
@@ -28,12 +29,16 @@
 
     <el-table v-loading="loading" :data="plans">
       <el-table-column label="计划名称" prop="planName" min-width="180" show-overflow-tooltip />
-      <el-table-column label="实验室ID" prop="laboratoryId" min-width="150" />
+      <el-table-column label="实验室" min-width="180" show-overflow-tooltip>
+        <template #default="{ row }">{{ laboratoryLabel(row.laboratoryId) }}</template>
+      </el-table-column>
       <el-table-column label="频率" width="150">
         <template #default="{ row }">{{ frequencyText(row) }}</template>
       </el-table-column>
       <el-table-column label="执行时间" prop="executeTime" width="110" />
-      <el-table-column label="负责人ID" prop="ownerId" min-width="150" />
+      <el-table-column label="负责人" min-width="160" show-overflow-tooltip>
+        <template #default="{ row }">{{ userLabel(row.ownerId) }}</template>
+      </el-table-column>
       <el-table-column label="下次执行" width="190">
         <template #default="{ row }">{{ parseTime(row.nextRunAt) || '-' }}</template>
       </el-table-column>
@@ -73,13 +78,25 @@
       <el-form ref="planFormRef" :model="form" :rules="rules" label-width="110px">
         <el-row :gutter="16">
           <el-col :span="12"><el-form-item label="计划名称" prop="planName"><el-input v-model="form.planName" maxlength="100" /></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="实验室ID" prop="laboratoryId"><el-input v-model="form.laboratoryId" /></el-form-item></el-col>
+          <el-col :span="12">
+            <el-form-item label="实验室" prop="laboratoryId">
+              <el-select v-model="form.laboratoryId" filterable placeholder="请选择实验室" style="width: 100%">
+                <el-option v-for="item in laboratoryOptions" :key="item.id" :label="item.label" :value="item.id" />
+              </el-select>
+            </el-form-item>
+          </el-col>
           <el-col :span="8"><el-form-item label="频率" prop="frequencyType"><el-select v-model="form.frequencyType" @change="normalizeFrequency"><el-option label="每天" value="DAILY" /><el-option label="每周" value="WEEKLY" /><el-option label="每月" value="MONTHLY" /></el-select></el-form-item></el-col>
           <el-col :span="8"><el-form-item label="间隔" prop="intervalValue"><el-input-number v-model="form.intervalValue" :min="1" :max="31" /></el-form-item></el-col>
           <el-col :span="8"><el-form-item label="执行时间" prop="executeTime"><el-time-picker v-model="form.executeTime" value-format="HH:mm:ss" /></el-form-item></el-col>
           <el-col v-if="form.frequencyType === 'WEEKLY'" :span="8"><el-form-item label="星期" prop="dayOfWeek"><el-select v-model="form.dayOfWeek"><el-option v-for="day in 7" :key="day" :label="`星期${['一','二','三','四','五','六','日'][day - 1]}`" :value="day" /></el-select></el-form-item></el-col>
           <el-col v-if="form.frequencyType === 'MONTHLY'" :span="8"><el-form-item label="每月日期" prop="dayOfMonth"><el-input-number v-model="form.dayOfMonth" :min="1" :max="31" /></el-form-item></el-col>
-          <el-col :span="8"><el-form-item label="负责人ID" prop="ownerId"><el-input v-model="form.ownerId" /></el-form-item></el-col>
+          <el-col :span="8">
+            <el-form-item label="负责人" prop="ownerId">
+              <el-select v-model="form.ownerId" filterable placeholder="请选择安全负责人" style="width: 100%">
+                <el-option v-for="item in ownerOptions" :key="item.id" :label="item.label" :value="item.id" />
+              </el-select>
+            </el-form-item>
+          </el-col>
           <el-col :span="8"><el-form-item label="截止偏移(分)" prop="deadlineOffsetMinutes"><el-input-number v-model="form.deadlineOffsetMinutes" :min="1" :max="43200" /></el-form-item></el-col>
         </el-row>
 
@@ -113,6 +130,8 @@ import {
   listInspectionPlans,
   updateInspectionPlan
 } from '@/api/lab/inspection'
+import { listLaboratory } from '@/api/lab/laboratory'
+import { listLabUserOptions } from '@/api/lab/options'
 
 const { proxy } = getCurrentInstance()
 const loading = ref(false)
@@ -120,16 +139,48 @@ const submitting = ref(false)
 const showSearch = ref(true)
 const plans = ref([])
 const total = ref(0)
+const laboratoryOptions = ref([])
+const ownerOptions = ref([])
+const optionsError = ref('')
 const planFormRef = ref()
 const query = reactive({ pageNum: 1, pageSize: 10, keyword: undefined, status: undefined })
 const dialog = reactive({ open: false, title: '' })
 const form = reactive(emptyForm())
 const rules = {
   planName: [{ required: true, message: '请输入计划名称', trigger: 'blur' }],
-  laboratoryId: [{ required: true, message: '请输入实验室ID', trigger: 'blur' }],
+  laboratoryId: [{ required: true, message: '请选择实验室', trigger: 'change' }],
   frequencyType: [{ required: true, message: '请选择频率', trigger: 'change' }],
   executeTime: [{ required: true, message: '请选择执行时间', trigger: 'change' }],
-  ownerId: [{ required: true, message: '请输入负责人ID', trigger: 'blur' }]
+  ownerId: [{ required: true, message: '请选择负责人', trigger: 'change' }]
+}
+
+function laboratoryLabel(id) {
+  return laboratoryOptions.value.find(item => item.id === String(id))?.label || `实验室 ${id}`
+}
+
+function userLabel(id) {
+  return ownerOptions.value.find(item => item.id === String(id))?.label || `用户 ${id}`
+}
+
+async function loadOptions() {
+  optionsError.value = ''
+  const results = await Promise.allSettled([
+    listLaboratory({ pageNum: 1, pageSize: 200, sortBy: 'name', sortDirection: 'asc' }).then(response => {
+      laboratoryOptions.value = (response.rows || []).map(item => ({
+        id: String(item.id),
+        label: `${item.labCode} · ${item.name}`
+      }))
+    }),
+    listLabUserOptions({ roleKey: 'lab_safety_officer' }).then(response => {
+      ownerOptions.value = (response.data || []).map(item => ({
+        id: String(item.id),
+        label: `${item.displayName || item.userName}（${item.userName}）`
+      }))
+    })
+  ])
+  if (results.some(item => item.status === 'rejected')) {
+    optionsError.value = '实验室或负责人选项加载失败，请刷新页面重试'
+  }
 }
 
 function emptyForm() {
@@ -229,9 +280,11 @@ function frequencyText(row) {
   return `${prefix} / ${row.intervalValue || 1}`
 }
 
+loadOptions()
 loadPlans()
 </script>
 
 <style scoped>
 .section-title { display: flex; justify-content: space-between; align-items: center; margin: 8px 0 12px; font-weight: 600; }
+.mb12 { margin-bottom: 12px; }
 </style>

@@ -18,9 +18,9 @@
         <el-descriptions :column="2" border class="mb20">
           <el-descriptions-item label="资产编号">{{ device.assetNo }}</el-descriptions-item>
           <el-descriptions-item label="设备名称">{{ device.name }}</el-descriptions-item>
-          <el-descriptions-item label="实验室 ID">{{ device.laboratoryId }}</el-descriptions-item>
-          <el-descriptions-item label="负责人 ID">{{ device.managerId }}</el-descriptions-item>
-          <el-descriptions-item label="设备类别">{{ device.categoryCode }}</el-descriptions-item>
+          <el-descriptions-item label="实验室">{{ laboratoryLabel(device.laboratoryId) }}</el-descriptions-item>
+          <el-descriptions-item label="负责人">{{ userLabel(device.managerId) }}</el-descriptions-item>
+          <el-descriptions-item label="设备类别"><dict-tag :options="lab_device_category" :value="device.categoryCode" /></el-descriptions-item>
           <el-descriptions-item label="型号">{{ device.model || '—' }}</el-descriptions-item>
           <el-descriptions-item label="风险等级">
             <dict-tag :options="lab_risk_level" :value="device.riskLevel" />
@@ -95,7 +95,16 @@ import AttachmentPanel from '@/components/lab/AttachmentPanel.vue'
 import StatusHistory from '@/components/lab/StatusHistory.vue'
 
 const { proxy } = getCurrentInstance()
-const { lab_device_status, lab_risk_level } = useDict('lab_device_status', 'lab_risk_level')
+const { lab_device_status, lab_risk_level, lab_device_category } = useDict(
+  'lab_device_status',
+  'lab_risk_level',
+  'lab_device_category'
+)
+
+const props = defineProps({
+  laboratoryOptions: { type: Array, default: () => [] },
+  userOptions: { type: Array, default: () => [] }
+})
 
 const visible = ref(false)
 const loading = ref(false)
@@ -109,7 +118,17 @@ const occupiedLoading = ref(false)
 const occupiedError = ref('')
 
 const canReadAttachment = computed(() => proxy.$auth.hasPermi('lab:attachment:read'))
-const canManageAttachment = computed(() => proxy.$auth.hasPermi('lab:attachment:manage'))
+const canManageAttachment = computed(() => proxy.$auth.hasPermi('lab:attachment:manage')
+  && proxy.$auth.hasPermi('lab:device:edit'))
+
+function laboratoryLabel(id) {
+  const item = props.laboratoryOptions.find(option => option.id === String(id))
+  return item ? `${item.labCode} · ${item.name}` : `实验室 ${id}`
+}
+
+function userLabel(id) {
+  return props.userOptions.find(option => option.id === String(id))?.label || `用户 ${id}`
+}
 
 function localDateTime(value) {
   const pad = part => String(part).padStart(2, '0')

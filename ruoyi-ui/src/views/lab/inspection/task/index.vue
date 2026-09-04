@@ -6,7 +6,7 @@
           <el-option v-for="item in statuses" :key="item.value" :label="item.label" :value="item.value" />
         </el-select>
       </el-form-item>
-      <el-form-item label="负责人ID"><el-input v-model="query.assigneeId" clearable placeholder="可选" /></el-form-item>
+      <el-form-item label="负责人"><el-select v-model="query.assigneeId" clearable filterable placeholder="全部" style="width: 210px"><el-option v-for="item in userOptions" :key="item.id" :label="item.label" :value="item.id" /></el-select></el-form-item>
       <el-form-item>
         <el-button type="primary" icon="Search" @click="handleQuery">搜索</el-button>
         <el-button icon="Refresh" @click="resetQuery">重置</el-button>
@@ -15,8 +15,8 @@
     <el-row :gutter="10" class="mb8"><right-toolbar v-model:showSearch="showSearch" @queryTable="loadTasks" /></el-row>
     <el-table v-loading="loading" :data="tasks">
       <el-table-column label="任务编号" prop="taskNo" min-width="190" />
-      <el-table-column label="实验室ID" prop="laboratoryId" min-width="150" />
-      <el-table-column label="负责人ID" prop="assigneeId" min-width="150" />
+      <el-table-column label="实验室" min-width="180" show-overflow-tooltip><template #default="{ row }">{{ laboratoryLabel(row.laboratoryId) }}</template></el-table-column>
+      <el-table-column label="负责人" min-width="170" show-overflow-tooltip><template #default="{ row }">{{ userLabel(row.assigneeId) }}</template></el-table-column>
       <el-table-column label="计划执行" width="190"><template #default="{ row }">{{ parseTime(row.scheduledAt) }}</template></el-table-column>
       <el-table-column label="截止时间" width="190"><template #default="{ row }"><span :class="{ overdue: row.overdueFlag === '1' }">{{ parseTime(row.deadlineAt) }}</span></template></el-table-column>
       <el-table-column label="状态" width="120" align="center">
@@ -38,12 +38,16 @@
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { listInspectionTasks } from '@/api/lab/inspection'
+import { listLaboratory } from '@/api/lab/laboratory'
+import { listLabUserOptions } from '@/api/lab/options'
 
 const router = useRouter()
 const loading = ref(false)
 const showSearch = ref(true)
 const tasks = ref([])
 const total = ref(0)
+const laboratoryOptions = ref([])
+const userOptions = ref([])
 const query = reactive({ pageNum: 1, pageSize: 10, status: undefined, assigneeId: undefined })
 const statuses = [
   { value: 'PENDING', label: '待执行' },
@@ -51,6 +55,19 @@ const statuses = [
   { value: 'COMPLETED', label: '已完成' },
   { value: 'OVERDUE', label: '已超期' }
 ]
+
+function laboratoryLabel(id) { return laboratoryOptions.value.find(item => item.id === String(id))?.label || `实验室 ${id}` }
+function userLabel(id) { return userOptions.value.find(item => item.id === String(id))?.label || `用户 ${id}` }
+async function loadOptions() {
+  await Promise.allSettled([
+    listLaboratory({ pageNum: 1, pageSize: 200, sortBy: 'name', sortDirection: 'asc' }).then(response => {
+      laboratoryOptions.value = (response.rows || []).map(item => ({ id: String(item.id), label: `${item.labCode} · ${item.name}` }))
+    }),
+    listLabUserOptions({ roleKey: 'lab_safety_officer' }).then(response => {
+      userOptions.value = (response.data || []).map(item => ({ id: String(item.id), label: `${item.displayName || item.userName}（${item.userName}）` }))
+    })
+  ])
+}
 
 async function loadTasks() {
   loading.value = true
@@ -65,6 +82,7 @@ function resetQuery() { Object.assign(query, { pageNum: 1, status: undefined, as
 function openExecute(row) { router.push(`/lab/inspection/task/execute/${row.id}`) }
 function statusText(status) { return statuses.find(item => item.value === status)?.label || status }
 function statusType(status) { return { PENDING: 'warning', IN_PROGRESS: 'primary', COMPLETED: 'success', OVERDUE: 'danger' }[status] || 'info' }
+loadOptions()
 loadTasks()
 </script>
 

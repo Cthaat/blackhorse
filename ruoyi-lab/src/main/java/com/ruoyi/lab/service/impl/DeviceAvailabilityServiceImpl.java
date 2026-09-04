@@ -45,6 +45,25 @@ public class DeviceAvailabilityServiceImpl implements DeviceAvailabilityService
     @Transactional(propagation = Propagation.MANDATORY)
     public void restoreAfterRepair(Long deviceId, Long operatorId)
     {
+        restore(deviceId, operatorId, "维修验收后恢复可用");
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void restoreAfterLaboratoryEnabled(Long laboratoryId, Long operatorId)
+    {
+        if (laboratoryId == null || laboratoryId <= 0 || operatorId == null || operatorId <= 0)
+        {
+            throw new LabBusinessException(LabErrorCode.VALIDATION_ERROR, "实验室恢复参数无效");
+        }
+        for (Long deviceId : deviceMapper.selectMaintenanceIdsByLaboratoryForUpdate(laboratoryId))
+        {
+            restore(deviceId, operatorId, "实验室重新启用后恢复可用");
+        }
+    }
+
+    private void restore(Long deviceId, Long operatorId, String reason)
+    {
         if (deviceId == null || deviceId <= 0 || operatorId == null || operatorId <= 0)
         {
             throw new LabBusinessException(LabErrorCode.VALIDATION_ERROR, "设备恢复参数无效");
@@ -73,6 +92,6 @@ public class DeviceAvailabilityServiceImpl implements DeviceAvailabilityService
                     "操作已被其他请求处理");
         }
         historyService.append("DEVICE", deviceId, DeviceStatus.MAINTENANCE.name(),
-                DeviceStatus.AVAILABLE.name(), operatorId, "维修验收后恢复可用");
+                DeviceStatus.AVAILABLE.name(), operatorId, reason);
     }
 }

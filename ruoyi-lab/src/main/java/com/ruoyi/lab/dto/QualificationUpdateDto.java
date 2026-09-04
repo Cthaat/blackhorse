@@ -17,6 +17,8 @@ public class QualificationUpdateDto
     private QualificationScopeType scopeType;
     @NotBlank
     private String scopeId;
+    @NotNull @Positive
+    private Long laboratoryId;
     @NotNull
     private LocalDateTime validFrom;
     @NotNull
@@ -47,6 +49,8 @@ public class QualificationUpdateDto
     public void setScopeType(QualificationScopeType scopeType) { this.scopeType = scopeType; }
     public String getScopeId() { return scopeId; }
     public void setScopeId(String scopeId) { this.scopeId = scopeId; }
+    public Long getLaboratoryId() { return laboratoryId; }
+    public void setLaboratoryId(Long laboratoryId) { this.laboratoryId = laboratoryId; }
     public LocalDateTime getValidFrom() { return validFrom; }
     public void setValidFrom(LocalDateTime validFrom) { this.validFrom = validFrom; }
     public LocalDateTime getValidUntil() { return validUntil; }

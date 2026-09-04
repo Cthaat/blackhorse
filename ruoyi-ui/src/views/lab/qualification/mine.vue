@@ -94,7 +94,10 @@ import AttachmentPanel from '@/components/lab/AttachmentPanel.vue'
 import StatusHistory from '@/components/lab/StatusHistory.vue'
 
 const { proxy } = getCurrentInstance()
-const { lab_qualification_scope_type } = useDict('lab_qualification_scope_type')
+const { lab_qualification_scope_type, lab_device_category } = useDict(
+  'lab_qualification_scope_type',
+  'lab_device_category'
+)
 
 const loading = ref(false)
 const errorMessage = ref('')
@@ -126,11 +129,20 @@ function statusMeta(status) {
 }
 
 function normalizeQualification(row) {
-  return { ...row, id: String(row.id), userId: String(row.userId), scopeId: String(row.scopeId) }
+  return {
+    ...row,
+    id: String(row.id),
+    userId: String(row.userId),
+    laboratoryId: String(row.laboratoryId),
+    scopeId: String(row.scopeId)
+  }
 }
 
 function scopeLabel(row) {
-  return row.scopeType === 'LABORATORY' ? `实验室 ${row.scopeId}` : `设备类别 ${row.scopeId}`
+  const laboratory = row.laboratoryName || '未命名实验室'
+  if (row.scopeType === 'LABORATORY') return `${laboratory} · 全实验室`
+  const category = lab_device_category.value.find(item => item.value === row.scopeId)
+  return `${laboratory} · ${category?.label || row.scopeId}`
 }
 
 async function getList() {

@@ -1,5 +1,6 @@
 package com.ruoyi.lab.mapper;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.ruoyi.lab.domain.DeviceStatus;
@@ -14,12 +15,18 @@ import org.apache.ibatis.annotations.Param;
 public interface LabDeviceMapper extends BaseMapper<LabDevice>
 {
     List<LabDevice> selectListByScope(@Param("scope") LabDataScope scope,
+            @Param("currentUserId") Long currentUserId,
+            @Param("readableAt") LocalDateTime readableAt,
             @Param("laboratoryId") Long laboratoryId, @Param("categoryCode") String categoryCode,
             @Param("status") DeviceStatus status, @Param("keyword") String keyword,
             @Param("sort") SortClause sort);
 
     LabDevice selectByIdInScope(@Param("deviceId") Long deviceId,
             @Param("scope") LabDataScope scope);
+
+    LabDevice selectByIdReadable(@Param("deviceId") Long deviceId,
+            @Param("scope") LabDataScope scope, @Param("currentUserId") Long currentUserId,
+            @Param("readableAt") LocalDateTime readableAt);
 
     LabDevice selectByIdForUpdate(@Param("deviceId") Long deviceId);
 
@@ -28,4 +35,7 @@ public interface LabDeviceMapper extends BaseMapper<LabDevice>
 
     int updateStatusConditionally(@Param("deviceId") Long deviceId,
             @Param("expected") String expected, @Param("target") String target);
+
+    List<Long> selectMaintenanceIdsByLaboratoryForUpdate(
+            @Param("laboratoryId") Long laboratoryId);
 }

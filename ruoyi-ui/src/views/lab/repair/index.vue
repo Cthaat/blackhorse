@@ -11,8 +11,10 @@
       <el-form-item label="维修编号" prop="repairNo">
         <el-input v-model="queryParams.repairNo" clearable placeholder="请输入维修编号" @keyup.enter="handleQuery" />
       </el-form-item>
-      <el-form-item label="设备 ID" prop="deviceId">
-        <el-input v-model="queryParams.deviceId" clearable placeholder="请输入设备 ID" @keyup.enter="handleQuery" />
+      <el-form-item label="设备" prop="deviceId">
+        <el-select v-model="queryParams.deviceId" clearable filterable placeholder="全部设备" style="width: 220px">
+          <el-option v-for="device in devices" :key="String(device.id)" :value="String(device.id)" :label="`${device.assetNo} · ${device.name}`" />
+        </el-select>
       </el-form-item>
       <el-form-item label="工单状态" prop="status">
         <el-select v-model="queryParams.status" clearable placeholder="全部状态" class="query-select">
@@ -46,8 +48,8 @@
       <el-table-column label="来源" width="110" align="center">
         <template #default="scope">{{ sourceLabel(scope.row.sourceType) }}</template>
       </el-table-column>
-      <el-table-column label="维修人 ID" prop="assigneeId" min-width="116">
-        <template #default="scope">{{ scope.row.assigneeId || '-' }}</template>
+      <el-table-column label="维修人员" min-width="160" show-overflow-tooltip>
+        <template #default="scope">{{ assigneeLabel(scope.row.assigneeId) }}</template>
       </el-table-column>
       <el-table-column label="状态" width="108" align="center">
         <template #default="scope"><dict-tag :options="lab_repair_status" :value="scope.row.status" /></template>
@@ -79,7 +81,7 @@
       <el-alert v-if="reportError" :title="reportError" type="error" show-icon :closable="false" class="mb16" />
       <el-form ref="reportRef" :model="reportForm" :rules="reportRules" label-width="96px">
         <el-form-item label="故障设备" prop="deviceId">
-          <el-select v-model="reportForm.deviceId" class="full-width" filterable allow-create default-first-option clearable :loading="deviceLoading" placeholder="请选择设备或输入设备 ID" no-data-text="可直接输入设备 ID">
+          <el-select v-model="reportForm.deviceId" class="full-width" filterable clearable :loading="deviceLoading" placeholder="请选择设备">
             <el-option
               v-for="device in devices"
               :key="String(device.id)"
@@ -95,6 +97,21 @@
       <template #footer>
         <el-button :disabled="submitting" @click="reportOpen = false">取消</el-button>
         <el-button type="primary" :loading="submitting" @click="submitReport">提交报修</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="assignOpen" title="分派维修人员" width="520px" append-to-body :close-on-click-modal="false">
+      <el-form ref="assignRef" :model="assignForm" :rules="assignRules" label-width="96px">
+        <el-form-item label="维修工单">{{ assignRow?.repairNo || '-' }}</el-form-item>
+        <el-form-item label="维修人员" prop="assigneeId">
+          <el-select v-model="assignForm.assigneeId" filterable placeholder="请选择维修人员" class="full-width">
+            <el-option v-for="item in workerOptions" :key="item.id" :value="item.id" :label="item.label" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button :disabled="submitting" @click="assignOpen = false">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="submitAssign">确认分派</el-button>
       </template>
     </el-dialog>
 
@@ -117,7 +134,7 @@
       </template>
     </el-dialog>
 
-    <RepairDetail v-model="detailOpen" :repair-id="detailId" />
+    <RepairDetail v-model="detailOpen" :repair-id="detailId" :worker-options="workerOptions" />
   </div>
 </template>
 
@@ -132,6 +149,7 @@ import {
   startRepair,
   submitRepairResult
 } from '@/api/lab/repair'
+import { listLabUserOptions } from '@/api/lab/options'
 
 const { proxy } = getCurrentInstance()
 const route = useRoute()
@@ -139,6 +157,7 @@ const { lab_repair_status } = useDict('lab_repair_status')
 const queryRef = ref()
 const reportRef = ref()
 const acceptRef = ref()
+const assignRef = ref()
 const loading = ref(false)
 const errorMessage = ref('')
 const rows = ref([])
@@ -152,10 +171,18 @@ const reportOpen = ref(false)
 const reportError = ref('')
 const deviceLoading = ref(false)
 const devices = ref([])
+const workerOptions = ref([])
 const reportForm = reactive({ deviceId: '', description: '' })
 const reportRules = {
   deviceId: [{ required: true, message: '请选择故障设备', trigger: 'change' }],
   description: [{ required: true, whitespace: true, message: '请填写故障描述', trigger: 'blur' }]
+}
+
+const assignOpen = ref(false)
+const assignRow = ref(null)
+const assignForm = reactive({ assigneeId: '' })
+const assignRules = {
+  assigneeId: [{ required: true, message: '请选择维修人员', trigger: 'change' }]
 }
 
 const acceptOpen = ref(false)
@@ -232,17 +259,8 @@ async function openReport() {
   reportForm.description = ''
   reportError.value = ''
   reportOpen.value = true
-  deviceLoading.value = true
-  try {
-    const response = await listRepairDevices({ pageNum: 1, pageSize: 200, sortBy: 'assetNo', sortDirection: 'asc' })
-    devices.value = Array.isArray(response.rows) ? response.rows : []
-  } catch (error) {
-    devices.value = []
-    reportError.value = messageOf(error, '设备列表加载失败')
-  } finally {
-    deviceLoading.value = false
-    nextTick(() => reportRef.value?.clearValidate())
-  }
+  if (!devices.value.length) await loadDeviceOptions(reportError)
+  nextTick(() => reportRef.value?.clearValidate())
 }
 
 async function submitReport() {
@@ -265,22 +283,59 @@ async function submitReport() {
 }
 
 async function handleAssign(row) {
+  assignRow.value = row
+  assignForm.assigneeId = ''
+  assignOpen.value = true
+  if (!workerOptions.value.length) await loadWorkerOptions()
+  nextTick(() => assignRef.value?.clearValidate())
+}
+
+async function submitAssign() {
+  if (!await assignRef.value?.validate().catch(() => false)) return
+  submitting.value = true
+  actionId.value = String(assignRow.value.id)
   try {
-    const { value } = await proxy.$modal.prompt('请输入维修人员用户 ID')
-    const assigneeId = value?.trim()
-    if (!/^\d+$/.test(assigneeId ?? '')) {
-      proxy.$modal.msgWarning('请输入有效的用户 ID')
-      return
-    }
-    actionId.value = String(row.id)
-    await assignRepair(String(row.id), { assigneeId })
+    await assignRepair(actionId.value, { assigneeId: assignForm.assigneeId })
     proxy.$modal.msgSuccess('维修任务已分派')
+    assignOpen.value = false
     await getList()
   } catch (error) {
-    if (error && error !== 'cancel' && error !== 'close') errorMessage.value = messageOf(error, '维修分派失败')
+    errorMessage.value = messageOf(error, '维修分派失败')
   } finally {
     actionId.value = ''
+    submitting.value = false
   }
+}
+
+async function loadDeviceOptions(errorTarget) {
+  deviceLoading.value = true
+  try {
+    const response = await listRepairDevices({ pageNum: 1, pageSize: 500, sortBy: 'assetNo', sortDirection: 'asc' })
+    devices.value = Array.isArray(response.rows) ? response.rows : []
+  } catch (error) {
+    devices.value = []
+    if (errorTarget) errorTarget.value = messageOf(error, '设备列表加载失败')
+  } finally {
+    deviceLoading.value = false
+  }
+}
+
+async function loadWorkerOptions() {
+  try {
+    const response = await listLabUserOptions({ roleKey: 'lab_repair_worker' })
+    workerOptions.value = (response.data || []).map(item => ({
+      id: String(item.id),
+      label: `${item.displayName || item.userName}（${item.userName}）`
+    }))
+  } catch (error) {
+    errorMessage.value = messageOf(error, '维修人员列表加载失败')
+    workerOptions.value = []
+  }
+}
+
+function assigneeLabel(id) {
+  if (!id) return '-'
+  return workerOptions.value.find(item => item.id === String(id))?.label || `用户 ${id}`
 }
 
 async function handleStart(row) {
@@ -356,7 +411,11 @@ function messageOf(error, fallback) {
   return error?.response?.data?.msg ?? error?.data?.msg ?? error?.message ?? fallback
 }
 
-onMounted(getList)
+onMounted(() => {
+  getList()
+  loadDeviceOptions()
+  if (proxy.$auth.hasPermi('lab:repair:assign')) loadWorkerOptions()
+})
 </script>
 
 <style scoped>

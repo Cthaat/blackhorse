@@ -22,7 +22,7 @@ public enum DeviceStatus
         }
         return switch (this)
         {
-            case AVAILABLE -> target == FAULT || target == DISABLED;
+            case AVAILABLE -> target == DISABLED;
             case FAULT -> target == DISABLED;
             case DISABLED -> target == AVAILABLE;
             case IN_USE, MAINTENANCE -> false;

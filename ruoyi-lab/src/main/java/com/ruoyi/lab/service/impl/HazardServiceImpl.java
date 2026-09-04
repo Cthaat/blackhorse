@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import com.ruoyi.lab.domain.HazardSeverity;
 import com.ruoyi.lab.domain.HazardStatus;
@@ -24,6 +25,8 @@ import com.ruoyi.lab.security.LabDataScopeService;
 import com.ruoyi.lab.security.LabObjectPermissionService;
 import com.ruoyi.lab.service.HazardService;
 import com.ruoyi.lab.service.LabStatusHistoryService;
+import com.ruoyi.lab.service.LabUserDirectory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,12 +44,14 @@ public class HazardServiceImpl implements HazardService
     private final LabDataScopeService dataScopeService;
     private final LabStatusHistoryService historyService;
     private final Clock clock;
+    private final LabUserDirectory userDirectory;
 
+    @Autowired
     public HazardServiceImpl(LabHazardMapper hazardMapper,
             LabRectificationMapper rectificationMapper, LabInspectionTaskMapper taskMapper,
             LabDeviceMapper deviceMapper, HazardAffectedDeviceResolver affectedDeviceResolver,
             LabObjectPermissionService permissionService, LabDataScopeService dataScopeService,
-            LabStatusHistoryService historyService, Clock clock)
+            LabStatusHistoryService historyService, Clock clock, LabUserDirectory userDirectory)
     {
         this.hazardMapper = hazardMapper;
         this.rectificationMapper = rectificationMapper;
@@ -57,6 +62,17 @@ public class HazardServiceImpl implements HazardService
         this.dataScopeService = dataScopeService;
         this.historyService = historyService;
         this.clock = clock;
+        this.userDirectory = userDirectory;
+    }
+
+    public HazardServiceImpl(LabHazardMapper hazardMapper,
+            LabRectificationMapper rectificationMapper, LabInspectionTaskMapper taskMapper,
+            LabDeviceMapper deviceMapper, HazardAffectedDeviceResolver affectedDeviceResolver,
+            LabObjectPermissionService permissionService, LabDataScopeService dataScopeService,
+            LabStatusHistoryService historyService, Clock clock)
+    {
+        this(hazardMapper, rectificationMapper, taskMapper, deviceMapper, affectedDeviceResolver,
+                permissionService, dataScopeService, historyService, clock, null);
     }
 
     @Override
@@ -100,6 +116,7 @@ public class HazardServiceImpl implements HazardService
         {
             throw new LabBusinessException(LabErrorCode.RESOURCE_NOT_FOUND, "巡检任务不存在");
         }
+        assertTargetInLaboratory(item.getTargetType(), item.getTargetId(), task.getLaboratoryId());
         try
         {
             return insert(item.getId(), null, item.getTargetType(), item.getTargetId(),
@@ -128,8 +145,7 @@ public class HazardServiceImpl implements HazardService
     public LabHazard get(Long hazardId)
     {
         LabHazard hazard = requireActive(hazardId);
-        if (hazard.getOwnerId() != null
-                && hazard.getOwnerId() == permissionService.currentUserId())
+        if (Objects.equals(hazard.getOwnerId(), permissionService.currentUserId()))
         {
             return hazard;
         }
@@ -148,6 +164,7 @@ public class HazardServiceImpl implements HazardService
             Long targetId, HazardSeverity severity, Long ownerId, LocalDateTime deadline,
             String requirements, Long actorId, String actorName)
     {
+        assertHazardOwner(ownerId);
         LocalDateTime now = LocalDateTime.now(clock);
         LabHazard hazard = new LabHazard();
         hazard.setHazardNo("HZ" + NUMBER_TIME.format(now)
@@ -219,6 +236,32 @@ public class HazardServiceImpl implements HazardService
     {
         if (type == HazardTargetType.LABORATORY) permissionService.assertLaboratoryReadable(id);
         else permissionService.assertDeviceReadable(id);
+    }
+
+    private void assertTargetInLaboratory(HazardTargetType type, Long targetId, Long laboratoryId)
+    {
+        if (type == HazardTargetType.LABORATORY)
+        {
+            if (!laboratoryId.equals(targetId))
+            {
+                throw validation("巡检隐患目标不属于当前任务实验室");
+            }
+            return;
+        }
+        com.ruoyi.lab.domain.LabDevice device = deviceMapper.selectById(targetId);
+        if (device == null || !laboratoryId.equals(device.getLaboratoryId()))
+        {
+            throw validation("巡检隐患目标不属于当前任务实验室");
+        }
+    }
+
+    private void assertHazardOwner(Long ownerId)
+    {
+        if (userDirectory == null)
+        {
+            throw new IllegalStateException("实验室用户目录未配置");
+        }
+        userDirectory.assertActiveBusinessParticipant(ownerId);
     }
 
     private LabHazard requireActive(Long hazardId)

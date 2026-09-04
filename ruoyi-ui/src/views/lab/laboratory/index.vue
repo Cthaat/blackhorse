@@ -96,17 +96,14 @@
           </el-col>
           <el-col :sm="12" :xs="24">
             <el-form-item label="所属部门" prop="deptId">
-              <el-tree-select
-                v-if="deptOptions.length"
+              <el-select
                 v-model="form.deptId"
-                :data="deptOptions"
-                :props="{ value: 'id', label: 'label', children: 'children' }"
-                check-strictly
                 filterable
                 placeholder="请选择所属部门"
                 style="width: 100%"
-              />
-              <el-input v-else v-model="form.deptId" maxlength="20" placeholder="请输入所属部门 ID" />
+              >
+                <el-option v-for="item in deptOptions" :key="item.id" :label="item.name" :value="item.id" />
+              </el-select>
             </el-form-item>
           </el-col>
           <el-col :sm="12" :xs="24">
@@ -114,9 +111,7 @@
               <el-select
                 v-model="form.managerId"
                 filterable
-                allow-create
-                default-first-option
-                placeholder="请选择负责人或输入用户 ID"
+                placeholder="请选择实验室负责人"
                 style="width: 100%"
               >
                 <el-option v-for="item in userOptions" :key="item.id" :label="item.label" :value="item.id" />
@@ -187,8 +182,6 @@
 
 <script setup name="LabLaboratories">
 import { parseTime } from '@/utils/ruoyi'
-import { listDept } from '@/api/system/dept'
-import { listUser } from '@/api/system/user'
 import {
   addLaboratory,
   disableLaboratory,
@@ -197,6 +190,7 @@ import {
   listLaboratory,
   updateLaboratory
 } from '@/api/lab/laboratory'
+import { listLabDepartmentOptions, listLabUserOptions } from '@/api/lab/options'
 import AttachmentPanel from '@/components/lab/AttachmentPanel.vue'
 import StatusHistory from '@/components/lab/StatusHistory.vue'
 
@@ -226,10 +220,9 @@ const detailId = ref('')
 const detail = ref(null)
 
 const canQuery = computed(() => proxy.$auth.hasPermi('lab:laboratory:query'))
-const canListDept = computed(() => proxy.$auth.hasPermi('system:dept:list'))
-const canListUser = computed(() => proxy.$auth.hasPermi('system:user:list'))
 const canReadAttachment = computed(() => proxy.$auth.hasPermi('lab:attachment:read'))
-const canManageAttachment = computed(() => proxy.$auth.hasPermi('lab:attachment:manage'))
+const canManageAttachment = computed(() => proxy.$auth.hasPermi('lab:attachment:manage')
+  && proxy.$auth.hasPermi('lab:laboratory:edit'))
 const statusTitle = computed(() => statusRow.value?.status === 'ENABLED' ? '停用实验室' : '启用实验室')
 
 const data = reactive({
@@ -275,18 +268,6 @@ function normalizeLaboratory(row) {
   }
 }
 
-function normalizeDepartments(rows) {
-  const labels = new Map()
-  const convert = items => (items || []).map(item => {
-    const id = String(item.deptId)
-    labels.set(id, item.deptName)
-    return { id, label: item.deptName, children: convert(item.children) }
-  })
-  const options = convert(rows)
-  deptLabels.value = labels
-  return options
-}
-
 function deptLabel(id) {
   return deptLabels.value.get(String(id)) || `部门 ${id}`
 }
@@ -313,28 +294,25 @@ async function getList() {
 
 async function loadOptions() {
   optionsError.value = ''
-  const tasks = []
-  if (canListDept.value) {
-    tasks.push(listDept().then(response => {
-      const rows = Array.isArray(response) ? response : (response.data || [])
-      deptOptions.value = normalizeDepartments(rows)
-    }))
-  }
-  if (canListUser.value) {
-    tasks.push(listUser({ pageNum: 1, pageSize: 200, status: '0' }).then(response => {
+  const tasks = [
+    listLabDepartmentOptions().then(response => {
+      deptOptions.value = (response.data || []).map(item => ({ ...item, id: String(item.id) }))
+      deptLabels.value = new Map(deptOptions.value.map(item => [item.id, item.name]))
+    }),
+    listLabUserOptions({ roleKey: 'lab_manager' }).then(response => {
       const labels = new Map()
-      userOptions.value = (response.rows || []).map(item => {
-        const id = String(item.userId)
-        const label = `${item.nickName || item.userName}（${item.userName}）`
+      userOptions.value = (response.data || []).map(item => {
+        const id = String(item.id)
+        const label = `${item.displayName || item.userName}（${item.userName}）`
         labels.set(id, label)
         return { id, label }
       })
       userLabels.value = labels
-    }))
-  }
+    })
+  ]
   const results = await Promise.allSettled(tasks)
   if (results.some(item => item.status === 'rejected')) {
-    optionsError.value = '部分部门或用户选项加载失败，可直接输入有效 ID'
+    optionsError.value = '部门或负责人选项加载失败，请稍后重试'
   }
 }
 

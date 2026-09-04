@@ -12,6 +12,7 @@ import com.ruoyi.system.service.ISysRoleService;
 import com.ruoyi.system.service.ISysUserService;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
+@Order(100)
 public class LabDemoAccountInitializer implements ApplicationRunner
 {
     private static final String ACCOUNT_MARKER = "LAB_DEMO_ACCOUNT_V1";
@@ -27,6 +29,9 @@ public class LabDemoAccountInitializer implements ApplicationRunner
     private static final String ENABLED_VARIABLE = "LAB_DEMO_DATA_ENABLED";
     private static final Profiles PRODUCTION_PROFILE = Profiles.of("prod");
     private static final long DEMO_DEPARTMENT_ID = 103L;
+    private static final long ROOT_ADMIN_USER_ID = 1L;
+    private static final String ROOT_ADMIN_USER_NAME = "admin";
+    private static final String ROOT_ADMIN_PASSWORD_VARIABLE = "LAB_ROOT_ADMIN_PASSWORD";
     private static final long SYSTEM_OPERATOR_USER_ID = 9000L;
     private static final long SYSTEM_OPERATOR_CONFIG_ID = 100L;
     private static final String SYSTEM_OPERATOR_CONFIG_KEY = "lab.system.operator-user-id";
@@ -35,6 +40,8 @@ public class LabDemoAccountInitializer implements ApplicationRunner
             "select config_value from sys_config where config_id = ? and config_key = ? for update";
     private static final String COUNT_ANY_USER_NAME_SQL =
             "select count(*) from sys_user where user_name = ?";
+    private static final String COUNT_ROOT_ADMIN_IDENTITY_SQL =
+            "select count(*) from sys_user where user_id = ? or user_name = ?";
     private static final String INITIALIZER_NAME = "lab-demo-initializer";
     private static final List<AccountSpec> ACCOUNT_SPECS = List.of(
             new AccountSpec("lab_student", "演示学生", 100L, "lab_student",
@@ -80,10 +87,13 @@ public class LabDemoAccountInitializer implements ApplicationRunner
             throw new IllegalStateException("Demo data must not be enabled in production.");
         }
 
+        String rootAdminPassword = readRequiredPassword(ROOT_ADMIN_PASSWORD_VARIABLE);
         List<String> passwords = readRequiredPasswords();
         lockAndValidateSystemOperatorConfig();
         validateRoles();
+        PreparedRootAdmin rootAdmin = preflightRootAdmin(rootAdminPassword);
         List<PreparedAccount> accounts = preflightAccounts(passwords);
+        applyRootAdmin(rootAdmin);
         accounts.forEach(this::applyAccount);
     }
 
@@ -92,18 +102,23 @@ public class LabDemoAccountInitializer implements ApplicationRunner
         List<String> passwords = new ArrayList<>(ACCOUNT_SPECS.size());
         for (AccountSpec spec : ACCOUNT_SPECS)
         {
-            String password = environment.getProperty(spec.passwordEnvironment());
-            if (password == null || password.isBlank()
-                    || password.length() < UserConstants.PASSWORD_MIN_LENGTH
-                    || password.length() > UserConstants.PASSWORD_MAX_LENGTH)
-            {
-                throw new IllegalStateException(
-                        "Required environment variable is missing, blank, or outside allowed length: "
-                                + spec.passwordEnvironment());
-            }
-            passwords.add(password);
+            passwords.add(readRequiredPassword(spec.passwordEnvironment()));
         }
         return passwords;
+    }
+
+    private String readRequiredPassword(String variable)
+    {
+        String password = environment.getProperty(variable);
+        if (password == null || password.isBlank()
+                || password.length() < UserConstants.PASSWORD_MIN_LENGTH
+                || password.length() > UserConstants.PASSWORD_MAX_LENGTH)
+        {
+            throw new IllegalStateException(
+                    "Required environment variable is missing, blank, or outside allowed length: "
+                            + variable);
+        }
+        return password;
     }
 
     private void lockAndValidateSystemOperatorConfig()
@@ -166,6 +181,30 @@ public class LabDemoAccountInitializer implements ApplicationRunner
             accounts.add(new PreparedAccount(spec, passwords.get(index), existing, roleIds, postIds));
         }
         return accounts;
+    }
+
+    private PreparedRootAdmin preflightRootAdmin(String password)
+    {
+        Integer identityCount = jdbcTemplate.queryForObject(COUNT_ROOT_ADMIN_IDENTITY_SQL,
+                Integer.class, ROOT_ADMIN_USER_ID, ROOT_ADMIN_USER_NAME);
+        SysUser rootAdmin = userService.selectUserByUserName(ROOT_ADMIN_USER_NAME);
+        if (!Integer.valueOf(1).equals(identityCount) || rootAdmin == null
+                || !Objects.equals(ROOT_ADMIN_USER_ID, rootAdmin.getUserId())
+                || !ROOT_ADMIN_USER_NAME.equals(rootAdmin.getUserName())
+                || !"0".equals(rootAdmin.getStatus()) || !"0".equals(rootAdmin.getDelFlag()))
+        {
+            throw new IllegalStateException("Built-in root administrator identity is unavailable or ambiguous.");
+        }
+        return new PreparedRootAdmin(password, passwordMatches(password, rootAdmin.getPassword()));
+    }
+
+    private void applyRootAdmin(PreparedRootAdmin rootAdmin)
+    {
+        if (!rootAdmin.passwordMatches())
+        {
+            requireSingleRow(userService.resetUserPwd(ROOT_ADMIN_USER_ID,
+                    passwordEncoder.encode(rootAdmin.password())), "rotate password for", ROOT_ADMIN_USER_NAME);
+        }
     }
 
     private void applyAccount(PreparedAccount account)
@@ -271,6 +310,10 @@ public class LabDemoAccountInitializer implements ApplicationRunner
 
     private record PreparedAccount(AccountSpec spec, String password, SysUser existing,
             List<Long> roleIds, List<Long> postIds)
+    {
+    }
+
+    private record PreparedRootAdmin(String password, boolean passwordMatches)
     {
     }
 }

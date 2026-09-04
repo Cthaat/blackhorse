@@ -16,7 +16,9 @@
         </el-select>
       </el-form-item>
       <el-form-item label="设备类别" prop="categoryCode">
-        <el-input v-model="queryParams.categoryCode" clearable placeholder="请输入类别编码" style="width: 180px" />
+        <el-select v-model="queryParams.categoryCode" clearable filterable placeholder="全部类别" style="width: 180px">
+          <el-option v-for="dict in lab_device_category" :key="dict.value" :label="dict.label" :value="dict.value" />
+        </el-select>
       </el-form-item>
       <el-form-item label="状态" prop="status">
         <el-select v-model="queryParams.status" clearable placeholder="全部状态" style="width: 160px">
@@ -52,7 +54,9 @@
     <el-table v-loading="loading" :data="deviceList" @row-dblclick="handleDetail">
       <el-table-column label="资产编号" prop="assetNo" min-width="150" show-overflow-tooltip />
       <el-table-column label="设备名称" prop="name" min-width="150" show-overflow-tooltip />
-      <el-table-column label="设备类别" prop="categoryCode" width="130" show-overflow-tooltip />
+      <el-table-column label="设备类别" width="140" show-overflow-tooltip>
+        <template #default="scope"><dict-tag :options="lab_device_category" :value="scope.row.categoryCode" /></template>
+      </el-table-column>
       <el-table-column label="型号" prop="model" width="130" show-overflow-tooltip />
       <el-table-column label="风险等级" width="110" align="center">
         <template #default="scope"><dict-tag :options="lab_risk_level" :value="scope.row.riskLevel" /></template>
@@ -121,9 +125,7 @@
               <el-select
                 v-model="form.managerId"
                 filterable
-                allow-create
-                default-first-option
-                placeholder="请选择负责人或输入用户 ID"
+                placeholder="请选择设备负责人"
                 style="width: 100%"
               >
                 <el-option v-for="item in userOptions" :key="item.id" :label="item.label" :value="item.id" />
@@ -132,7 +134,9 @@
           </el-col>
           <el-col :sm="12" :xs="24">
             <el-form-item label="设备类别" prop="categoryCode">
-              <el-input v-model="form.categoryCode" maxlength="32" placeholder="例如 MICROSCOPE" />
+              <el-select v-model="form.categoryCode" filterable placeholder="请选择设备类别" style="width: 100%">
+                <el-option v-for="dict in lab_device_category" :key="dict.value" :label="dict.label" :value="dict.value" />
+              </el-select>
             </el-form-item>
           </el-col>
           <el-col :sm="12" :xs="24">
@@ -188,14 +192,14 @@
       </template>
     </el-dialog>
 
-    <device-detail ref="detailRef" />
+    <device-detail ref="detailRef" :laboratory-options="laboratoryOptions" :user-options="userOptions" />
   </div>
 </template>
 
 <script setup name="LabDevices">
 import { parseTime, selectDictLabel } from '@/utils/ruoyi'
-import { listUser } from '@/api/system/user'
 import { listLaboratory } from '@/api/lab/laboratory'
+import { listLabUserOptions } from '@/api/lab/options'
 import {
   addDevice,
   changeDeviceStatus,
@@ -207,7 +211,11 @@ import DeviceDetail from './detail.vue'
 
 const { proxy } = getCurrentInstance()
 const route = useRoute()
-const { lab_device_status, lab_risk_level } = useDict('lab_device_status', 'lab_risk_level')
+const { lab_device_status, lab_risk_level, lab_device_category } = useDict(
+  'lab_device_status',
+  'lab_risk_level',
+  'lab_device_category'
+)
 
 const loading = ref(false)
 const errorMessage = ref('')
@@ -226,7 +234,6 @@ const statusRow = ref(null)
 const detailRef = ref()
 
 const canListLaboratory = computed(() => proxy.$auth.hasPermi('lab:laboratory:list'))
-const canListUser = computed(() => proxy.$auth.hasPermi('system:user:list'))
 
 const data = reactive({
   queryParams: {
@@ -297,16 +304,13 @@ async function getList() {
 
 async function loadOptions() {
   optionsError.value = ''
-  const tasks = []
-  if (canListUser.value) {
-    tasks.push(listUser({ pageNum: 1, pageSize: 200, status: '0' })
-      .then(response => {
-        userOptions.value = (response.rows || []).map(item => ({
-          id: String(item.userId),
-          label: `${item.nickName || item.userName}（${item.userName}）`
-        }))
+  const tasks = [listLabUserOptions({ roleKey: 'lab_manager' })
+    .then(response => {
+      userOptions.value = (response.data || []).map(item => ({
+        id: String(item.id),
+        label: `${item.displayName || item.userName}（${item.userName}）`
       }))
-  }
+    })]
   if (canListLaboratory.value) {
     tasks.push(listLaboratory({ pageNum: 1, pageSize: 200, sortBy: 'name', sortDirection: 'asc' })
       .then(response => {
@@ -392,7 +396,7 @@ async function submitForm() {
 
 function statusTargets(status) {
   const transitions = {
-    AVAILABLE: ['FAULT', 'DISABLED'],
+    AVAILABLE: ['DISABLED'],
     FAULT: ['DISABLED'],
     DISABLED: ['AVAILABLE']
   }

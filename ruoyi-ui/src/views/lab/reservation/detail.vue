@@ -28,8 +28,8 @@
           <el-tag :type="statusType(detail.status)" effect="light">{{ statusLabel(detail.status) }}</el-tag>
         </div>
         <el-descriptions :column="2" border class="mt16">
-          <el-descriptions-item label="设备 ID">{{ detail.deviceId }}</el-descriptions-item>
-          <el-descriptions-item label="申请人 ID">{{ detail.applicantId }}</el-descriptions-item>
+          <el-descriptions-item label="设备">{{ optionLabel(deviceOptions, detail.deviceId, '设备') }}</el-descriptions-item>
+          <el-descriptions-item label="申请人">{{ optionLabel(applicantOptions, detail.applicantId, '用户') }}</el-descriptions-item>
           <el-descriptions-item label="开始时间">{{ formatDateTime(detail.startTime) }}</el-descriptions-item>
           <el-descriptions-item label="结束时间">{{ formatDateTime(detail.endTime) }}</el-descriptions-item>
           <el-descriptions-item label="预约用途" :span="2">{{ detail.purpose || '-' }}</el-descriptions-item>
@@ -52,13 +52,19 @@ import { getReservation } from '@/api/lab/reservation'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  reservationId: { type: [String, Number], default: '' }
+  reservationId: { type: [String, Number], default: '' },
+  deviceOptions: { type: Array, default: () => [] },
+  applicantOptions: { type: Array, default: () => [] }
 })
 
 const emit = defineEmits(['update:modelValue'])
 const loading = ref(false)
 const errorMessage = ref('')
 const detail = ref()
+
+function optionLabel(options, id, prefix) {
+  return options.find(item => item.id === String(id))?.label || `${prefix} ${id}`
+}
 
 async function loadDetail() {
   if (!props.reservationId) return

@@ -1,7 +1,9 @@
 package com.ruoyi.lab.security;
 
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
+import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.lab.domain.HazardTargetType;
 import com.ruoyi.lab.domain.LabHazard;
 import com.ruoyi.lab.domain.LabInspectionPlan;
@@ -66,6 +68,7 @@ public class LabStatusHistoryObjectAuthorizer
     {
         String normalizedType = normalizeObjectType(objectType);
         long userId = requireCurrentUser(currentUserId);
+        assertFunctionPermission(normalizedType);
         switch (normalizedType)
         {
             case "LABORATORY" -> objectPermissionService.assertLaboratoryReadable(objectId);
@@ -75,7 +78,7 @@ public class LabStatusHistoryObjectAuthorizer
             case "REPAIR_ORDER" -> assertRepairReadable(objectId, userId);
             case "INSPECTION_PLAN" -> assertInspectionPlanReadable(objectId);
             case "INSPECTION_TASK" -> assertInspectionTaskReadable(objectId);
-            case "HAZARD" -> assertHazardReadable(objectId);
+            case "HAZARD" -> assertHazardReadable(objectId, userId);
             default -> throw new LabBusinessException(LabErrorCode.VALIDATION_ERROR,
                     "状态历史对象类型无效");
         }
@@ -85,19 +88,26 @@ public class LabStatusHistoryObjectAuthorizer
     {
         LabQualification qualification = qualificationMapper.selectActiveById(objectId);
         requireExists(qualification);
-        if (qualification.getUserId() != null && qualification.getUserId() == userId)
+        if (Objects.equals(qualification.getUserId(), userId))
         {
             return;
         }
+        requirePermission("lab:qualification:query");
+        long laboratoryId = requirePositive(qualification.getLaboratoryId(),
+                "资格实验室编号无效");
         if (qualification.getScopeType() == QualificationScopeType.LABORATORY)
         {
-            objectPermissionService.assertLaboratoryReadable(parsePositive(qualification.getScopeId()));
-            return;
+            if (parsePositive(qualification.getScopeId()) != laboratoryId)
+            {
+                throw new LabBusinessException(LabErrorCode.VALIDATION_ERROR,
+                        "资格实验室范围数据不一致");
+            }
         }
-        if (dataScopeService.resolveCurrentScope().empty())
+        else if (qualification.getScopeType() != QualificationScopeType.DEVICE_CATEGORY)
         {
             throw outOfScope();
         }
+        objectPermissionService.assertLaboratoryReadable(laboratoryId);
     }
 
     private void assertReservationReadable(long objectId, long userId)
@@ -108,7 +118,52 @@ public class LabStatusHistoryObjectAuthorizer
         {
             return;
         }
-        objectPermissionService.assertDeviceReadable(reservation.getDeviceId());
+        requirePermission("lab:reservation:list");
+        objectPermissionService.assertDeviceManageable(reservation.getDeviceId());
+    }
+
+    private static void assertFunctionPermission(String objectType)
+    {
+        boolean permitted = switch (objectType)
+        {
+            case "LABORATORY" -> SecurityUtils.hasPermi("lab:laboratory:query");
+            case "DEVICE" -> SecurityUtils.hasPermi("lab:device:query");
+            case "QUALIFICATION" -> hasAnyPermission("lab:qualification:query",
+                    "lab:qualification:mine");
+            case "RESERVATION" -> hasAnyPermission("lab:reservation:list",
+                    "lab:reservation:mine");
+            case "REPAIR_ORDER" -> SecurityUtils.hasPermi("lab:repair:query");
+            case "INSPECTION_PLAN" -> SecurityUtils.hasPermi("lab:inspection:plan:list");
+            case "INSPECTION_TASK" -> SecurityUtils.hasPermi("lab:inspection:task:list");
+            case "HAZARD" -> SecurityUtils.hasPermi("lab:hazard:list");
+            default -> false;
+        };
+        if (!permitted)
+        {
+            throw new LabBusinessException(LabErrorCode.ACCESS_DENIED,
+                    "当前用户无权查询该类状态历史");
+        }
+    }
+
+    private static boolean hasAnyPermission(String... permissions)
+    {
+        for (String permission : permissions)
+        {
+            if (SecurityUtils.hasPermi(permission))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void requirePermission(String permission)
+    {
+        if (!SecurityUtils.hasPermi(permission))
+        {
+            throw new LabBusinessException(LabErrorCode.ACCESS_DENIED,
+                    "当前用户无权查询该状态历史");
+        }
     }
 
     private void assertRepairReadable(long objectId, long userId)
@@ -135,10 +190,14 @@ public class LabStatusHistoryObjectAuthorizer
         objectPermissionService.assertLaboratoryReadable(task.getLaboratoryId());
     }
 
-    private void assertHazardReadable(long objectId)
+    private void assertHazardReadable(long objectId, long userId)
     {
         LabHazard hazard = hazardMapper.selectActiveById(objectId);
         requireExists(hazard);
+        if (hazard.getOwnerId() != null && hazard.getOwnerId() == userId)
+        {
+            return;
+        }
         if (hazard.getTargetType() == HazardTargetType.LABORATORY)
         {
             objectPermissionService.assertLaboratoryReadable(hazard.getTargetId());
@@ -174,6 +233,15 @@ public class LabStatusHistoryObjectAuthorizer
             // Invalid persisted scope is denied below.
         }
         throw new LabBusinessException(LabErrorCode.VALIDATION_ERROR, "资格范围编号无效");
+    }
+
+    private static long requirePositive(Long value, String message)
+    {
+        if (value == null || value <= 0)
+        {
+            throw new LabBusinessException(LabErrorCode.VALIDATION_ERROR, message);
+        }
+        return value;
     }
 
     private static void requireExists(Object value)

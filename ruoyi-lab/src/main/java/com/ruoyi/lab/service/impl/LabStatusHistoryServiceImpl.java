@@ -71,7 +71,7 @@ public class LabStatusHistoryServiceImpl implements LabStatusHistoryService
     private static String requireReason(String reason)
     {
         String normalized = reason == null ? "" : reason.trim();
-        if (normalized.isEmpty() || normalized.length() > 500)
+        if (normalized.isEmpty() || normalized.length() > 2000)
         {
             throw new LabBusinessException(LabErrorCode.VALIDATION_ERROR, "状态变更原因长度无效");
         }

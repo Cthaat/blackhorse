@@ -41,7 +41,8 @@ class QualificationServiceTest
                 mock(LabObjectPermissionService.class),
                 mock(LabSortWhitelist.class),
                 mock(LabStatusHistoryService.class),
-                FIXED_CLOCK);
+                FIXED_CLOCK,
+                mock(LabUserDirectory.class));
     }
 
     @ParameterizedTest

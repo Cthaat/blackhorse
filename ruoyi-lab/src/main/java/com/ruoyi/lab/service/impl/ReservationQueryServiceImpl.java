@@ -46,24 +46,15 @@ public class ReservationQueryServiceImpl implements ReservationQueryService
         LabSortWhitelist.SortClause sort = sortWhitelist.resolve("reservation",
                 defaultValue(filters.getSortBy(), "createTime"),
                 defaultValue(filters.getSortDirection(), "desc"));
-        if (!managementView)
-        {
-            return reservationMapper.selectMine(userId,
-                    filters.getStatus() == null ? null : filters.getStatus().name(), sort)
-                    .stream().map(ReservationVo::from).toList();
-        }
-        LabDataScope scope = dataScopeService.resolveCurrentScope();
-        if (scope.empty())
-        {
-            return List.of();
-        }
         LocalDateTime from = localTime(filters.getFrom());
         LocalDateTime to = localTime(filters.getTo());
         if (from != null && to != null && !from.isBefore(to))
         {
             throw validation("预约查询时间范围无效");
         }
-        return reservationMapper.selectListByScope(scope, filters.getApplicantId(),
+        LabDataScope scope = managementView ? dataScopeService.resolveCurrentScope() : null;
+        return reservationMapper.selectAccessible(scope, userId, managementView,
+                filters.getApplicantId(),
                 filters.getDeviceId(), filters.getStatus() == null ? null : filters.getStatus().name(),
                 trimToNull(filters.getReservationNo()), from, to, sort)
                 .stream().map(ReservationVo::from).toList();
@@ -87,7 +78,7 @@ public class ReservationQueryServiceImpl implements ReservationQueryService
         {
             throw outOfScope();
         }
-        objectPermissionService.assertDeviceReadable(reservation.getDeviceId());
+        objectPermissionService.assertDeviceManageable(reservation.getDeviceId());
         return ReservationVo.from(reservation);
     }
 

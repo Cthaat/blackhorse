@@ -6,9 +6,7 @@
           v-model="queryParams.userId"
           clearable
           filterable
-          allow-create
-          default-first-option
-          placeholder="全部用户或输入用户 ID"
+          placeholder="全部学生"
           style="width: 250px"
         >
           <el-option v-for="item in userOptions" :key="item.id" :label="item.label" :value="item.id" />
@@ -100,39 +98,39 @@
           <el-select
             v-model="form.userId"
             filterable
-            allow-create
-            default-first-option
-            placeholder="请选择用户或输入用户 ID"
+            placeholder="请选择学生"
             style="width: 100%"
           >
             <el-option v-for="item in userOptions" :key="item.id" :label="item.label" :value="item.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="适用范围" prop="scopeType">
-          <el-radio-group v-model="form.scopeType" @change="form.scopeId = ''">
+          <el-radio-group v-model="form.scopeType" @change="handleScopeTypeChange">
             <el-radio-button v-for="dict in lab_qualification_scope_type" :key="dict.value" :label="dict.value">
               {{ dict.label }}
             </el-radio-button>
           </el-radio-group>
         </el-form-item>
-        <el-form-item label="范围对象" prop="scopeId">
+        <el-form-item label="所属实验室" prop="laboratoryId">
           <el-select
-            v-if="form.scopeType === 'LABORATORY' && canListLaboratory"
-            v-model="form.scopeId"
+            v-model="form.laboratoryId"
             filterable
-            allow-create
-            default-first-option
-            placeholder="请选择实验室或输入实验室 ID"
+            placeholder="请选择实验室"
             style="width: 100%"
+            @change="handleLaboratoryChange"
           >
             <el-option v-for="item in laboratoryOptions" :key="item.id" :label="`${item.labCode} · ${item.name}`" :value="item.id" />
           </el-select>
-          <el-input
-            v-else
+        </el-form-item>
+        <el-form-item v-if="form.scopeType === 'DEVICE_CATEGORY'" label="设备类别" prop="scopeId">
+          <el-select
             v-model="form.scopeId"
-            maxlength="64"
-            :placeholder="form.scopeType === 'LABORATORY' ? '请输入实验室 ID' : '请输入设备类别编码'"
-          />
+            filterable
+            placeholder="请选择设备类别"
+            style="width: 100%"
+          >
+            <el-option v-for="dict in lab_device_category" :key="dict.value" :label="dict.label" :value="dict.value" />
+          </el-select>
         </el-form-item>
         <el-form-item label="有效期" prop="validityRange">
           <el-date-picker
@@ -179,7 +177,7 @@
             <el-descriptions-item label="适用范围">
               <dict-tag :options="lab_qualification_scope_type" :value="detail.scopeType" />
             </el-descriptions-item>
-            <el-descriptions-item label="范围对象">{{ scopeLabel(detail) }}</el-descriptions-item>
+            <el-descriptions-item label="授权对象">{{ scopeLabel(detail) }}</el-descriptions-item>
             <el-descriptions-item label="生效时间">{{ parseTime(detail.validFrom) }}</el-descriptions-item>
             <el-descriptions-item label="失效时间">{{ parseTime(detail.validUntil) }}</el-descriptions-item>
             <el-descriptions-item label="撤销时间">{{ parseTime(detail.revokedAt) || '—' }}</el-descriptions-item>
@@ -205,8 +203,8 @@
 
 <script setup name="LabQualifications">
 import { parseTime } from '@/utils/ruoyi'
-import { listUser } from '@/api/system/user'
 import { listLaboratory } from '@/api/lab/laboratory'
+import { listLabUserOptions } from '@/api/lab/options'
 import {
   addQualification,
   getQualification,
@@ -218,7 +216,10 @@ import AttachmentPanel from '@/components/lab/AttachmentPanel.vue'
 import StatusHistory from '@/components/lab/StatusHistory.vue'
 
 const { proxy } = getCurrentInstance()
-const { lab_qualification_scope_type } = useDict('lab_qualification_scope_type')
+const { lab_qualification_scope_type, lab_device_category } = useDict(
+  'lab_qualification_scope_type',
+  'lab_device_category'
+)
 
 const loading = ref(false)
 const errorMessage = ref('')
@@ -244,9 +245,9 @@ const detail = ref(null)
 
 const canQuery = computed(() => proxy.$auth.hasPermi('lab:qualification:query'))
 const canListLaboratory = computed(() => proxy.$auth.hasPermi('lab:laboratory:list'))
-const canListUser = computed(() => proxy.$auth.hasPermi('system:user:list'))
 const canReadAttachment = computed(() => proxy.$auth.hasPermi('lab:attachment:read'))
-const canManageAttachment = computed(() => proxy.$auth.hasPermi('lab:attachment:manage'))
+const canManageAttachment = computed(() => proxy.$auth.hasPermi('lab:attachment:manage')
+  && proxy.$auth.hasPermi('lab:qualification:edit'))
 
 const data = reactive({
   queryParams: {
@@ -280,6 +281,7 @@ const scopeIdValidator = (_rule, value, callback) => {
 const rules = {
   userId: [{ validator: positiveStringId, trigger: 'change' }],
   scopeType: [{ required: true, message: '请选择适用范围', trigger: 'change' }],
+  laboratoryId: [{ validator: positiveStringId, trigger: 'change' }],
   scopeId: [{ validator: scopeIdValidator, trigger: ['blur', 'change'] }],
   validityRange: [{ type: 'array', required: true, len: 2, message: '请选择完整有效期', trigger: 'change' }]
 }
@@ -303,7 +305,13 @@ function statusMeta(status) {
 }
 
 function normalizeQualification(row) {
-  return { ...row, id: String(row.id), userId: String(row.userId), scopeId: String(row.scopeId) }
+  return {
+    ...row,
+    id: String(row.id),
+    userId: String(row.userId),
+    laboratoryId: String(row.laboratoryId),
+    scopeId: String(row.scopeId)
+  }
 }
 
 function userLabel(id) {
@@ -311,10 +319,14 @@ function userLabel(id) {
 }
 
 function scopeLabel(row) {
+  const laboratory = row.laboratoryName
+    || laboratoryLabels.value.get(String(row.laboratoryId))
+    || '未命名实验室'
   if (row.scopeType === 'LABORATORY') {
-    return laboratoryLabels.value.get(String(row.scopeId)) || `实验室 ${row.scopeId}`
+    return `${laboratory} · 全实验室`
   }
-  return `设备类别 ${row.scopeId}`
+  const category = lab_device_category.value.find(item => item.value === row.scopeId)
+  return `${laboratory} · ${category?.label || row.scopeId}`
 }
 
 async function getList() {
@@ -335,19 +347,16 @@ async function getList() {
 
 async function loadOptions() {
   optionsError.value = ''
-  const tasks = []
-  if (canListUser.value) {
-    tasks.push(listUser({ pageNum: 1, pageSize: 200, status: '0' }).then(response => {
+  const tasks = [listLabUserOptions({ roleKey: 'lab_student' }).then(response => {
       const labels = new Map()
-      userOptions.value = (response.rows || []).map(item => {
-        const id = String(item.userId)
-        const label = `${item.nickName || item.userName}（${item.userName}）`
+      userOptions.value = (response.data || []).map(item => {
+        const id = String(item.id)
+        const label = `${item.displayName || item.userName}（${item.userName}）`
         labels.set(id, label)
         return { id, label }
       })
       userLabels.value = labels
-    }))
-  }
+    })]
   if (canListLaboratory.value) {
     tasks.push(listLaboratory({ pageNum: 1, pageSize: 200, sortBy: 'name', sortDirection: 'asc' }).then(response => {
       const labels = new Map()
@@ -361,7 +370,7 @@ async function loadOptions() {
   }
   const results = await Promise.allSettled(tasks)
   if (results.some(item => item.status === 'rejected')) {
-    optionsError.value = '部分用户或实验室选项加载失败，可直接输入有效 ID'
+    optionsError.value = '学生或实验室选项加载失败，请稍后重试'
   }
 }
 
@@ -370,6 +379,7 @@ function resetForm() {
     id: '',
     userId: '',
     scopeType: 'LABORATORY',
+    laboratoryId: '',
     scopeId: '',
     validityRange: []
   }
@@ -405,13 +415,28 @@ async function handleEdit(row) {
 }
 
 function qualificationPayload() {
+  const laboratoryId = String(form.value.laboratoryId)
   return {
     userId: form.value.userId,
     scopeType: form.value.scopeType,
-    scopeId: form.value.scopeId.trim(),
+    laboratoryId,
+    scopeId: form.value.scopeType === 'LABORATORY'
+      ? laboratoryId
+      : form.value.scopeId.trim(),
     validFrom: form.value.validityRange[0],
     validUntil: form.value.validityRange[1],
     ...(form.value.id ? { expectedVersion: form.value.version } : {})
+  }
+}
+
+function handleScopeTypeChange(scopeType) {
+  form.value.scopeId = scopeType === 'LABORATORY' ? form.value.laboratoryId : ''
+  nextTick(() => proxy.$refs.qualificationRef?.clearValidate(['scopeId']))
+}
+
+function handleLaboratoryChange(laboratoryId) {
+  if (form.value.scopeType === 'LABORATORY') {
+    form.value.scopeId = laboratoryId
   }
 }
 

@@ -44,10 +44,9 @@ public interface LabReservationMapper extends BaseMapper<LabReservation>
             @Param("expected") String expected, @Param("expectedVersion") Integer expectedVersion,
             @Param("cancelTime") LocalDateTime cancelTime, @Param("reason") String reason);
 
-    List<LabReservation> selectMine(@Param("applicantId") Long applicantId,
-            @Param("status") String status, @Param("sort") SortClause sort);
-
-    List<LabReservation> selectListByScope(@Param("scope") LabDataScope scope,
+    List<LabReservation> selectAccessible(@Param("scope") LabDataScope scope,
+            @Param("currentUserId") Long currentUserId,
+            @Param("managementView") boolean managementView,
             @Param("applicantId") Long applicantId, @Param("deviceId") Long deviceId,
             @Param("status") String status, @Param("reservationNo") String reservationNo,
             @Param("from") LocalDateTime from, @Param("to") LocalDateTime to,

@@ -73,6 +73,11 @@ public class DeviceStatusCommandServiceImpl implements DeviceStatusCommandServic
 
         DeviceStatus current = locked.getStatus();
         DeviceStatus target = command.getTargetStatus();
+        if (target == DeviceStatus.FAULT)
+        {
+            throw new LabBusinessException(LabErrorCode.LAB_ILLEGAL_STATE_TRANSITION,
+                    "设备故障必须通过报修流程登记");
+        }
         if (current == null || !current.canMoveTo(target))
         {
             throw new LabBusinessException(LabErrorCode.LAB_ILLEGAL_STATE_TRANSITION, "设备状态变更不合法");
