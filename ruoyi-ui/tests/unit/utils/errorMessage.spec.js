@@ -1,0 +1,121 @@
+import { describe, expect, it } from 'vitest'
+import { resolveLabErrorMessage } from '@/utils/lab/errorMessage'
+
+const DEFAULT_MESSAGE = '系统处理失败，请稍后重试'
+
+describe('resolveLabErrorMessage', () => {
+  it.each([
+    [400, '请求参数不正确'],
+    [401, '登录状态已失效'],
+    [403, '没有执行该操作的权限'],
+    [404, '请求的业务对象不存在'],
+    [409, '当前状态或数据已发生冲突'],
+    [500, DEFAULT_MESSAGE]
+  ])('maps %s to a stable Chinese message', (status, message) => {
+    expect(resolveLabErrorMessage({ response: { status } })).toBe(message)
+  })
+
+  it.each([418, 'toString', '__proto__', undefined])('uses the default message for unknown status %s', (status) => {
+    expect(resolveLabErrorMessage({ response: { status } })).toBe(DEFAULT_MESSAGE)
+  })
+
+  it('allows the exact reservation conflict contract', () => {
+    const error = {
+      response: {
+        status: 409,
+        data: {
+          errorCode: 'LAB_RESERVATION_TIME_CONFLICT',
+          msg: '该设备在所选时段已被预约'
+        }
+      }
+    }
+    expect(resolveLabErrorMessage(error)).toBe('该设备在所选时段已被预约')
+  })
+
+  it.each([
+    ['missing error code', 409, undefined, '该设备在所选时段已被预约'],
+    ['wrong error code', 409, 'LAB_DEVICE_UNAVAILABLE', '该设备在所选时段已被预约'],
+    ['string HTTP status', '409', 'LAB_RESERVATION_TIME_CONFLICT', '该设备在所选时段已被预约'],
+    ['another HTTP status', 400, 'LAB_RESERVATION_TIME_CONFLICT', '该设备在所选时段已被预约'],
+    ['leading whitespace', 409, 'LAB_RESERVATION_TIME_CONFLICT', '  该设备在所选时段已被预约'],
+    ['trailing whitespace', 409, 'LAB_RESERVATION_TIME_CONFLICT', '该设备在所选时段已被预约  ']
+  ])('rejects the approved text when the %s does not match exactly', (_label, status, errorCode, msg) => {
+    const error = { response: { status, data: { errorCode, msg } } }
+    const expected = status === 400 ? '请求参数不正确' : DEFAULT_MESSAGE
+    expect(resolveLabErrorMessage(error)).toBe(status === 409 ? '当前状态或数据已发生冲突' : expected)
+  })
+
+  it('rejects an unapproved Chinese business message', () => {
+    const error = { response: { status: 409, data: { msg: '设备202已在第3时段被预约' } } }
+    expect(resolveLabErrorMessage(error)).toBe('当前状态或数据已发生冲突')
+  })
+
+  it('ignores arbitrary error messages and stacks', () => {
+    const error = {
+      message: 'Network Error: internal address 10.0.0.8',
+      stack: 'Error: internal failure\n    at reserve (booking.js:42:7)',
+      response: { status: 404 }
+    }
+
+    expect(resolveLabErrorMessage(error)).toBe('请求的业务对象不存在')
+    expect(resolveLabErrorMessage({ message: error.message, stack: error.stack })).toBe(DEFAULT_MESSAGE)
+  })
+
+  it.each([
+    ['an empty message', '   '],
+    ['a non-string message', { detail: 'internal failure' }],
+    ['a stack trace', '预约失败\n    at lab.BookingService.reserve(BookingService.java:42)'],
+    ['SQL details', 'SELECT password FROM sys_user WHERE user_id = 1'],
+    ['a SQL common table expression', '数据库执行失败：WITH leaked AS (VALUES (secret))'],
+    ['a SQL schema statement', '数据库执行失败：CREATE TABLE secrets (value VARCHAR(255))'],
+    ['transaction SQL details', '数据库执行失败：BEGIN TRANSACTION; VALUES (12345); COMMIT;'],
+    ['an exception class name', 'java.lang.IllegalStateException: booking failed'],
+    ['a native exception class name', '系统异常：std::runtime_error: secret'],
+    ['another native exception class name', '系统异常：std::bad_alloc: secret'],
+    ['a one-line traceback', '系统异常：Traceback (most recent call last): File "booking.py", line 42'],
+    ['a one-line file location', '系统异常：booking.js:42:7'],
+    ['a serialized JSON response body', '{"code":500,"data":{"secret":"value"}}'],
+    ['a serialized XML response body', '响应内容：<error><message>internal failure</message></error>'],
+    ['an internal IP address', '内部地址为10.0.0.8'],
+    ['an internal host and port', '连接主机10.0.0.8：3306失败'],
+    ['localized credentials', '用户名管理员密码123456'],
+    ['a localized source location', '预约服务第42行第7列']
+  ])('rejects %s from response.data.msg', (_label, msg) => {
+    const error = { response: { status: 400, data: { msg } } }
+    expect(resolveLabErrorMessage(error)).toBe('请求参数不正确')
+  })
+
+  it('does not stringify arbitrary response bodies', () => {
+    const error = {
+      response: {
+        status: 418,
+        data: {
+          message: 'internal failure',
+          sql: 'DELETE FROM lab_booking',
+          detail: { exception: 'IllegalStateException' }
+        }
+      }
+    }
+
+    expect(resolveLabErrorMessage(error)).toBe(DEFAULT_MESSAGE)
+  })
+
+  it('maps a legacy numeric response code without using its message', () => {
+    const error = {
+      response: {
+        status: 200,
+        data: { code: 403, msg: '内部角色：admin，权限：*:*:*' }
+      }
+    }
+
+    expect(resolveLabErrorMessage(error)).toBe('没有执行该操作的权限')
+  })
+
+  it.each([
+    [{ code: 'ECONNABORTED', message: 'timeout after reaching 10.0.0.8' }, '系统接口请求超时'],
+    [{ code: 'ETIMEDOUT', message: 'socket details must stay private' }, '系统接口请求超时'],
+    [{ message: 'Network Error' }, '后端接口连接异常']
+  ])('uses a fixed transport message for %#', (error, message) => {
+    expect(resolveLabErrorMessage(error)).toBe(message)
+  })
+})

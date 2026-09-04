@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.lab.mapper.LabQualificationMapper">
+
+    <resultMap id="LabQualificationResult" type="com.ruoyi.lab.domain.LabQualification">
+        <id property="id" column="id" />
+        <result property="userId" column="user_id" />
+        <result property="scopeType" column="scope_type" />
+        <result property="scopeId" column="scope_id" />
+        <result property="validFrom" column="valid_from" />
+        <result property="validUntil" column="valid_until" />
+        <result property="revokedAt" column="revoked_at" />
+        <result property="revokeReason" column="revoke_reason" />
+        <result property="version" column="version" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="delFlag" column="del_flag" />
+    </resultMap>
+
+    <sql id="QualificationColumns">
+        q.id, q.user_id, q.scope_type, q.scope_id, q.valid_from, q.valid_until,
+        q.revoked_at, q.revoke_reason, q.version, q.create_by, q.create_time,
+        q.update_by, q.update_time, q.del_flag
+    </sql>
+
+    <sql id="QualificationManagementScopePredicate">
+        <choose>
+            <when test="scope != null and scope.allLaboratories">
+                <!-- unrestricted scope -->
+            </when>
+            <when test="scope != null and scope.restricted() and scope.laboratoryIds != null and !scope.laboratoryIds.isEmpty()">
+                and (
+                    (q.scope_type = 'LABORATORY' and exists (
+                        select 1
+                        from lab_laboratory scoped_laboratory
+                        where cast(scoped_laboratory.id as char) = q.scope_id
+                          and scoped_laboratory.del_flag = '0'
+                          and scoped_laboratory.id in
+                          <foreach collection="scope.laboratoryIds" item="scopeLaboratoryId" open="(" separator="," close=")">
+                              #{scopeLaboratoryId}
+                          </foreach>
+                    ))
+                    or q.scope_type = 'DEVICE_CATEGORY'
+                )
+            </when>
+            <otherwise>
+                and 1 = 0
+            </otherwise>
+        </choose>
+    </sql>
+
+    <sql id="QualificationOrderBy">
+        <choose>
+            <when test="sort != null">
+                order by ${sort.column} ${sort.direction}
+            </when>
+            <otherwise>
+                order by q.create_time desc
+            </otherwise>
+        </choose>
+    </sql>
+
+    <select id="selectMine" resultMap="LabQualificationResult">
+        select <include refid="QualificationColumns" />
+        from lab_qualification q
+        where q.user_id = #{userId}
+          and q.del_flag = '0'
+        <include refid="QualificationOrderBy" />
+    </select>
+
+    <select id="selectListByScope" resultMap="LabQualificationResult">
+        select <include refid="QualificationColumns" />
+        from lab_qualification q
+        where q.del_flag = '0'
+        <include refid="QualificationManagementScopePredicate" />
+        <if test="userId != null">
+            and q.user_id = #{userId}
+        </if>
+        <if test="scopeType != null">
+            and q.scope_type = #{scopeType}
+        </if>
+        <include refid="QualificationOrderBy" />
+    </select>
+
+    <select id="selectActiveById" resultMap="LabQualificationResult">
+        select <include refid="QualificationColumns" />
+        from lab_qualification q
+        where q.id = #{qualificationId}
+          and q.del_flag = '0'
+    </select>
+
+    <select id="selectByIdForUpdate" resultMap="LabQualificationResult">
+        select <include refid="QualificationColumns" />
+        from lab_qualification q
+        where q.id = #{qualificationId}
+          and q.del_flag = '0'
+        for update
+    </select>
+
+    <update id="updateDetailsConditionally">
+        update lab_qualification
+        set user_id = #{qualification.userId},
+            scope_type = #{qualification.scopeType},
+            scope_id = #{qualification.scopeId},
+            valid_from = #{qualification.validFrom},
+            valid_until = #{qualification.validUntil},
+            update_by = #{qualification.updateBy},
+            version = version + 1
+        where id = #{qualification.id}
+          and version = #{expectedVersion}
+          and del_flag = '0'
+    </update>
+
+    <update id="revokeConditionally">
+        update lab_qualification
+        set revoked_at = #{revokedAt},
+            revoke_reason = #{revokeReason},
+            update_by = #{updateBy},
+            version = version + 1
+        where id = #{qualificationId}
+          and version = #{expectedVersion}
+          and revoked_at is null
+          and del_flag = '0'
+    </update>
+
+    <select id="countValidForDevice" resultType="int">
+        select count(1)
+        from lab_qualification q
+        inner join lab_device d on d.id = #{deviceId}
+                               and d.del_flag = '0'
+        where q.user_id = #{userId}
+          and q.del_flag = '0'
+          and q.valid_from &lt;= #{at}
+          and #{at} &lt; q.valid_until
+          and q.revoked_at is null
+          and (
+              (q.scope_type = 'LABORATORY' and q.scope_id = cast(d.laboratory_id as char))
+              or (q.scope_type = 'DEVICE_CATEGORY' and q.scope_id = d.category_code)
+          )
+    </select>
+
+</mapper>

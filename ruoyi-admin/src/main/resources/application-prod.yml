@@ -1,0 +1,15 @@
+# 生产环境不发布任何在线接口文档。
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+knife4j:
+  enable: false
+
+# Knife4j UI 是 META-INF/resources 下的静态资源；关闭默认静态映射后 /doc.html 才会真实返回 404。
+spring:
+  web:
+    resources:
+      add-mappings: false

@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.lab.mapper.LabInspectionPlanMapper">
+    <resultMap id="PlanResult" type="com.ruoyi.lab.domain.LabInspectionPlan">
+        <id property="id" column="id" />
+        <result property="planName" column="plan_name" />
+        <result property="laboratoryId" column="laboratory_id" />
+        <result property="frequencyType" column="frequency_type" />
+        <result property="intervalValue" column="interval_value" />
+        <result property="executeTime" column="execute_time" />
+        <result property="dayOfWeek" column="day_of_week" />
+        <result property="dayOfMonth" column="day_of_month" />
+        <result property="nextRunAt" column="next_run_at" />
+        <result property="ownerId" column="owner_id" />
+        <result property="deadlineRule" column="deadline_rule" />
+        <result property="deadlineOffsetMinutes" column="deadline_offset_minutes" />
+        <result property="status" column="status" />
+        <result property="version" column="version" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="delFlag" column="del_flag" />
+    </resultMap>
+    <sql id="Columns">p.id,p.plan_name,p.laboratory_id,p.frequency_type,p.interval_value,
+        p.execute_time,p.day_of_week,p.day_of_month,p.next_run_at,p.owner_id,p.deadline_rule,
+        p.deadline_offset_minutes,p.status,p.version,p.create_by,p.create_time,p.update_by,
+        p.update_time,p.del_flag</sql>
+    <sql id="Scope">
+        <choose>
+            <when test="scope != null and scope.allLaboratories"><!-- unrestricted --></when>
+            <when test="scope != null and scope.restricted() and scope.laboratoryIds != null and !scope.laboratoryIds.isEmpty()">
+                and p.laboratory_id in
+                <foreach collection="scope.laboratoryIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+            </when>
+            <otherwise>and 1=0</otherwise>
+        </choose>
+    </sql>
+    <select id="selectActiveById" resultMap="PlanResult">
+        select <include refid="Columns" /> from lab_inspection_plan p where p.id=#{planId} and p.del_flag='0'
+    </select>
+    <select id="selectForUpdate" resultMap="PlanResult">
+        select <include refid="Columns" /> from lab_inspection_plan p where p.id=#{planId} and p.del_flag='0' for update
+    </select>
+    <select id="selectListByScope" resultMap="PlanResult">
+        select <include refid="Columns" /> from lab_inspection_plan p where p.del_flag='0'
+        <include refid="Scope" />
+        <if test="status != null">and p.status=#{status}</if>
+        <if test="keyword != null and keyword != ''">and p.plan_name like concat('%',#{keyword},'%')</if>
+        order by p.create_time desc
+    </select>
+    <select id="selectDuePlansForUpdate" resultMap="PlanResult">
+        select <include refid="Columns" /> from lab_inspection_plan p
+        where p.status='ENABLED' and p.next_run_at &lt;=#{now} and p.del_flag='0'
+        order by p.next_run_at,p.id limit #{batchSize} for update skip locked
+    </select>
+    <update id="updateDetailsConditionally">
+        update lab_inspection_plan set plan_name=#{plan.planName},laboratory_id=#{plan.laboratoryId},
+        frequency_type=#{plan.frequencyType},interval_value=#{plan.intervalValue},execute_time=#{plan.executeTime},
+        day_of_week=#{plan.dayOfWeek},day_of_month=#{plan.dayOfMonth},next_run_at=#{plan.nextRunAt},
+        owner_id=#{plan.ownerId},deadline_rule=#{plan.deadlineRule},deadline_offset_minutes=#{plan.deadlineOffsetMinutes},
+        update_by=#{plan.updateBy},update_time=#{plan.updateTime},version=version+1
+        where id=#{plan.id} and version=#{expectedVersion} and status='DISABLED' and del_flag='0'
+    </update>
+    <update id="updateStatusConditionally">
+        update lab_inspection_plan set status=#{target},update_by=#{updateBy},update_time=#{updateTime},version=version+1
+        where id=#{planId} and status=#{expected} and del_flag='0'
+    </update>
+    <update id="advanceNextRun">
+        update lab_inspection_plan set next_run_at=#{nextRun},update_by=#{updateBy},update_time=#{updateTime},version=version+1
+        where id=#{planId} and next_run_at=#{expectedNextRun} and status='ENABLED' and del_flag='0'
+    </update>
+</mapper>

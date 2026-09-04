@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.lab.mapper.LabDictionaryMapper">
+
+    <select id="countEnabledValue" resultType="int">
+        select count(1)
+        from sys_dict_type t
+        inner join sys_dict_data d on d.dict_type = t.dict_type
+        where t.dict_type = #{dictType}
+          and t.status = '0'
+          and d.dict_value = #{dictValue}
+          and d.status = '0'
+    </select>
+
+</mapper>

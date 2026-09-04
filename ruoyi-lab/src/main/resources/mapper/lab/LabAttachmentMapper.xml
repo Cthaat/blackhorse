@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.lab.mapper.LabAttachmentMapper">
+
+    <resultMap id="LabAttachmentResult" type="com.ruoyi.lab.domain.LabAttachment">
+        <id property="id" column="id" />
+        <result property="businessType" column="business_type" />
+        <result property="businessId" column="business_id" />
+        <result property="originalName" column="original_name" />
+        <result property="storedName" column="stored_name" />
+        <result property="mimeType" column="mime_type" />
+        <result property="size" column="size" />
+        <result property="storageKey" column="storage_key" />
+        <result property="sha256" column="sha256" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="delFlag" column="del_flag" />
+    </resultMap>
+
+    <sql id="AttachmentColumns">
+        id, business_type, business_id, original_name, stored_name, mime_type,
+        size, storage_key, sha256, create_by, create_time, del_flag
+    </sql>
+
+    <select id="selectListByObject" resultMap="LabAttachmentResult">
+        select <include refid="AttachmentColumns" />
+        from lab_attachment
+        where business_type = #{businessType}
+          and business_id = #{businessId}
+          and del_flag = '0'
+        order by create_time, id
+    </select>
+
+    <select id="selectByIdActive" resultMap="LabAttachmentResult">
+        select <include refid="AttachmentColumns" />
+        from lab_attachment
+        where id = #{attachmentId}
+          and del_flag = '0'
+    </select>
+
+    <select id="selectByIdForUpdate" resultMap="LabAttachmentResult">
+        select <include refid="AttachmentColumns" />
+        from lab_attachment
+        where id = #{attachmentId}
+          and del_flag = '0'
+        for update
+    </select>
+
+    <select id="countActiveByObject" resultType="int">
+        select count(1)
+        from lab_attachment
+        where business_type = #{businessType}
+          and business_id = #{businessId}
+          and del_flag = '0'
+    </select>
+
+    <update id="markDeleted">
+        update lab_attachment
+        set del_flag = '2'
+        where id = #{attachmentId}
+          and del_flag = '0'
+    </update>
+
+</mapper>

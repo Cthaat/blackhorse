@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.lab.mapper.LabInspectionTaskMapper">
+    <resultMap id="TaskResult" type="com.ruoyi.lab.domain.LabInspectionTask">
+        <id property="id" column="id" /><result property="taskNo" column="task_no" />
+        <result property="planId" column="plan_id" /><result property="laboratoryId" column="laboratory_id" />
+        <result property="scheduledAt" column="scheduled_at" /><result property="deadlineAt" column="deadline_at" />
+        <result property="assigneeId" column="assignee_id" /><result property="status" column="status" />
+        <result property="overdueFlag" column="overdue_flag" /><result property="startedAt" column="started_at" />
+        <result property="overdueSetAt" column="overdue_set_at" /><result property="overdueEventVersion" column="overdue_event_version" />
+        <result property="completedAt" column="completed_at" /><result property="version" column="version" />
+        <result property="createBy" column="create_by" /><result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" /><result property="updateTime" column="update_time" />
+        <result property="delFlag" column="del_flag" />
+    </resultMap>
+    <sql id="Columns">t.id,t.task_no,t.plan_id,t.laboratory_id,t.scheduled_at,t.deadline_at,
+        t.assignee_id,t.status,t.overdue_flag,t.overdue_set_at,t.overdue_event_version,t.started_at,t.completed_at,t.version,t.create_by,
+        t.create_time,t.update_by,t.update_time,t.del_flag</sql>
+    <select id="selectActiveById" resultMap="TaskResult">select <include refid="Columns" /> from lab_inspection_task t where t.id=#{taskId} and t.del_flag='0'</select>
+    <select id="selectForUpdate" resultMap="TaskResult">select <include refid="Columns" /> from lab_inspection_task t where t.id=#{taskId} and t.del_flag='0' for update</select>
+    <select id="selectListByScope" resultMap="TaskResult">
+        select <include refid="Columns" /> from lab_inspection_task t where t.del_flag='0'
+        <choose><when test="scope != null and scope.allLaboratories"><!-- unrestricted --></when>
+        <when test="scope != null and scope.restricted() and scope.laboratoryIds != null and !scope.laboratoryIds.isEmpty()">and t.laboratory_id in <foreach collection="scope.laboratoryIds" item="id" open="(" separator="," close=")">#{id}</foreach></when>
+        <otherwise>and 1=0</otherwise></choose>
+        <if test="assigneeId != null">and t.assignee_id=#{assigneeId}</if><if test="status != null">and t.status=#{status}</if>
+        order by t.scheduled_at desc
+    </select>
+    <select id="existsByPlanAndSchedule" resultType="int">select count(1) from lab_inspection_task where plan_id=#{planId} and scheduled_at=#{scheduledAt} and del_flag='0'</select>
+    <update id="startConditionally">update lab_inspection_task set status='IN_PROGRESS',started_at=#{startedAt},update_by=#{updateBy},update_time=#{startedAt},version=version+1 where id=#{taskId} and status='PENDING' and version=#{expectedVersion} and del_flag='0'</update>
+    <update id="completeConditionally">update lab_inspection_task set status='COMPLETED',completed_at=#{completedAt},update_by=#{updateBy},update_time=#{completedAt},version=version+1 where id=#{taskId} and status='IN_PROGRESS' and version=#{expectedVersion} and del_flag='0'</update>
+    <select id="selectOverdueCandidates" resultMap="TaskResult">
+        select <include refid="Columns" /> from lab_inspection_task t
+        where t.deadline_at &lt; #{now} and t.status &lt;&gt; 'COMPLETED'
+          and t.overdue_flag='0' and t.del_flag='0'
+        order by t.id limit #{limit} for update
+    </select>
+    <update id="markOneOverdue">
+        update lab_inspection_task
+        set overdue_flag='1', overdue_set_at=#{now},
+            overdue_event_version=overdue_event_version+1,
+            update_by=#{updateBy}, update_time=#{now}, version=version+1
+        where id=#{taskId} and version=#{expectedVersion}
+          and overdue_flag='0' and del_flag='0'
+    </update>
+    <select id="selectUnreconciledOverdue" resultMap="TaskResult">
+        select <include refid="Columns" /> from lab_inspection_task t
+        where t.overdue_flag='1' and t.overdue_set_at is not null
+          and t.overdue_event_version &gt; 0 and t.del_flag='0'
+          and t.assignee_id is not null
+          and not exists (
+              select 1 from lab_notification n
+              where n.dedupe_key = concat('overdue:inspection_task:', t.id, ':',
+                                           t.overdue_event_version, ':', t.assignee_id)
+          )
+        order by t.id limit #{limit}
+    </select>
+</mapper>

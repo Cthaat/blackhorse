@@ -1,0 +1,32 @@
+spring:
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driverClassName: com.mysql.cj.jdbc.Driver
+    druid:
+      master:
+        url: ${LAB_TEST_DB_URL:jdbc:mysql://127.0.0.1:1/lab_test_unconfigured}
+        username: ${LAB_TEST_DB_USERNAME:lab_test_unconfigured}
+        password: ${LAB_TEST_DB_PASSWORD:lab_test_unconfigured}
+      slave:
+        enabled: false
+        url: ${LAB_TEST_DB_URL:jdbc:mysql://127.0.0.1:1/lab_test_unconfigured}
+        username: ${LAB_TEST_DB_USERNAME:lab_test_unconfigured}
+        password: ${LAB_TEST_DB_PASSWORD:lab_test_unconfigured}
+      initialSize: 0
+      minIdle: 0
+      maxActive: 2
+      maxWait: 5000
+      connectTimeout: 2000
+      socketTimeout: 5000
+      timeBetweenEvictionRunsMillis: 60000
+      minEvictableIdleTimeMillis: 300000
+      maxEvictableIdleTimeMillis: 900000
+      validationQuery: SELECT 1
+      testWhileIdle: true
+      testOnBorrow: false
+      testOnReturn: false
+  flyway:
+    enabled: ${LAB_TEST_FLYWAY_ENABLED:false}
+
+ruoyi:
+  profile: ${LAB_FILE_ROOT:${java.io.tmpdir}/ruoyi-lab-test-unconfigured}

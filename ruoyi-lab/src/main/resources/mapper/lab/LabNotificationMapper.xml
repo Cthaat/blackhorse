@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.lab.mapper.LabNotificationMapper">
+
+    <resultMap id="LabNotificationResult" type="com.ruoyi.lab.domain.LabNotification">
+        <id property="id" column="id" />
+        <result property="dedupeKey" column="dedupe_key" />
+        <result property="receiverId" column="receiver_id" />
+        <result property="notificationType" column="notification_type" />
+        <result property="title" column="title" />
+        <result property="content" column="content" />
+        <result property="businessType" column="business_type" />
+        <result property="businessId" column="business_id" />
+        <result property="deliveryStatus" column="delivery_status" />
+        <result property="attemptCount" column="attempt_count" />
+        <result property="nextRetryAt" column="next_retry_at" />
+        <result property="lastErrorCode" column="last_error_code" />
+        <result property="readAt" column="read_at" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+    </resultMap>
+
+    <sql id="NotificationColumns">
+        id, dedupe_key, receiver_id, notification_type, title, content,
+        business_type, business_id, delivery_status, attempt_count,
+        next_retry_at, last_error_code, read_at, create_by, create_time,
+        update_by, update_time
+    </sql>
+
+    <select id="selectByDedupeKey" resultMap="LabNotificationResult">
+        select <include refid="NotificationColumns" />
+        from lab_notification where dedupe_key = #{dedupeKey}
+    </select>
+
+    <select id="selectMineById" resultMap="LabNotificationResult">
+        select <include refid="NotificationColumns" />
+        from lab_notification
+        where id = #{notificationId} and receiver_id = #{receiverId}
+          and delivery_status = 'SENT'
+    </select>
+
+    <select id="selectMine" resultMap="LabNotificationResult">
+        select <include refid="NotificationColumns" />
+        from lab_notification
+        where receiver_id = #{receiverId} and delivery_status = 'SENT'
+        <if test="unreadOnly">and read_at is null</if>
+        order by create_time desc, id desc
+    </select>
+
+    <select id="selectDueFailedIds" resultType="long">
+        select id from lab_notification
+        where delivery_status = 'FAILED'
+          and next_retry_at &lt;= #{now}
+        order by next_retry_at, id
+        limit #{limit}
+    </select>
+
+    <select id="selectRetryable" resultMap="LabNotificationResult">
+        select <include refid="NotificationColumns" />
+        from lab_notification
+        where delivery_status = 'FAILED'
+          and next_retry_at &lt;= #{now}
+          and attempt_count &lt; 10
+        order by next_retry_at, id
+        limit #{limit}
+    </select>
+
+    <update id="markReadMine">
+        update lab_notification set read_at = #{readAt}, update_time = #{readAt}
+        where id = #{notificationId} and receiver_id = #{receiverId}
+          and delivery_status = 'SENT' and read_at is null
+    </update>
+
+    <update id="markSent">
+        update lab_notification
+        set delivery_status = 'SENT', next_retry_at = null, last_error_code = null,
+            attempt_count = attempt_count + 1, update_by = 'system', update_time = #{updateTime}
+        where id = #{notificationId} and delivery_status = 'FAILED'
+    </update>
+
+    <update id="markFailed">
+        update lab_notification
+        set delivery_status = 'FAILED', next_retry_at = #{nextRetryAt},
+            last_error_code = #{lastErrorCode}, attempt_count = attempt_count + 1,
+            update_by = 'system', update_time = #{updateTime}
+        where id = #{notificationId}
+    </update>
+
+</mapper>

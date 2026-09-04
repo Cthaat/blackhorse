@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.lab.mapper.LabInspectionPlanItemMapper">
+    <resultMap id="ItemResult" type="com.ruoyi.lab.domain.LabInspectionPlanItem">
+        <id property="id" column="id" /><result property="planId" column="plan_id" />
+        <result property="itemCode" column="item_code" /><result property="content" column="content" />
+        <result property="sortOrder" column="sort_order" /><result property="enabled" column="enabled" />
+        <result property="createTime" column="create_time" /><result property="updateTime" column="update_time" />
+        <result property="delFlag" column="del_flag" />
+    </resultMap>
+    <select id="selectByPlan" resultMap="ItemResult">select * from lab_inspection_plan_item where plan_id=#{planId} and del_flag='0' order by sort_order,id</select>
+    <select id="selectEnabledByPlan" resultMap="ItemResult">select * from lab_inspection_plan_item where plan_id=#{planId} and enabled='1' and del_flag='0' order by sort_order,id</select>
+    <select id="countEnabledByPlan" resultType="int">select count(1) from lab_inspection_plan_item where plan_id=#{planId} and enabled='1' and del_flag='0'</select>
+    <update id="retireByPlan">update lab_inspection_plan_item set del_flag='2',update_time=#{updateTime} where plan_id=#{planId} and del_flag='0'</update>
+</mapper>
