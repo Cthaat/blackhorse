@@ -19,6 +19,8 @@ public class LabReservation implements Serializable
     private Long deviceId;
     private Long applicantId;
     private Long submitterId;
+    private Long ruleVersionId;
+    private String ruleSnapshot;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private String purpose;
@@ -48,6 +50,10 @@ public class LabReservation implements Serializable
     public Long getDeviceId() { return deviceId; }
     public void setDeviceId(Long deviceId) { this.deviceId = deviceId; }
     public Long getSubmitterId() { return submitterId; }
+    public Long getRuleVersionId() { return ruleVersionId; }
+    public void setRuleVersionId(Long ruleVersionId) { this.ruleVersionId = ruleVersionId; }
+    public String getRuleSnapshot() { return ruleSnapshot; }
+    public void setRuleSnapshot(String ruleSnapshot) { this.ruleSnapshot = ruleSnapshot; }
     public void setSubmitterId(Long submitterId) { this.submitterId = submitterId; }
     public Long getApplicantId() { return applicantId; }
     public void setApplicantId(Long applicantId) { this.applicantId = applicantId; }

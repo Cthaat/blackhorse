@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.lab.mapper.LabReservationTraceMapper">
+    <select id="history" resultType="com.ruoyi.lab.vo.StatusHistoryVo">
+        select h.id, h.object_type as objectType, h.object_id as objectId,
+               h.from_status as fromStatus, h.to_status as toStatus,
+               h.operator_id as operatorId, coalesce(nullif(u.nick_name,''),u.user_name) as operatorName,
+               h.reason, h.trace_id as traceId, h.create_time as createTime
+        from lab_status_history h left join sys_user u on u.user_id=h.operator_id and u.del_flag='0'
+        where h.del_flag='0' and ((h.object_type='RESERVATION' and h.object_id=#{reservationId})
+        <if test="repairId != null">or (h.object_type='REPAIR_ORDER' and h.object_id=#{repairId})</if>)
+        order by h.create_time desc,h.id desc limit #{limit}
+    </select>
+    <select id="notifications" resultType="com.ruoyi.lab.vo.ReservationTraceVo$Node">
+        select id,title,delivery_status as status,create_time as createTime,
+               content as reason,'DIRECT_RELATION' as basis
+        from lab_notification
+        where receiver_id=#{receiverId} and delivery_status='SENT'
+          and ((business_type='RESERVATION' and business_id=#{reservationId})
+          <if test="usageId != null">or (business_type='USAGE_RECORD' and business_id=#{usageId})</if>
+          <if test="repairId != null">or (business_type='REPAIR_ORDER' and business_id=#{repairId})</if>)
+        order by create_time desc,id desc limit #{limit}
+    </select>
+    <select id="hazards" resultType="com.ruoyi.lab.vo.ReservationTraceVo$Node">
+        select h.id,h.hazard_no as title,h.status,h.create_time as createTime,
+               h.requirements as reason,'SAME_TARGET_CONTEXT' as basis
+        from lab_hazard h join lab_device d on d.id=#{deviceId} and d.del_flag='0'
+        where h.del_flag='0'
+          and ((h.target_type='DEVICE' and h.target_id=d.id)
+            or (h.target_type='LABORATORY' and h.target_id=d.laboratory_id))
+          and (h.owner_id=#{viewerId}
+          <choose>
+            <when test="scope != null and scope.allLaboratories">or 1=1</when>
+            <when test="scope != null and !scope.laboratoryIds.isEmpty()">
+              or d.laboratory_id in <foreach collection="scope.laboratoryIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+            </when>
+          </choose>)
+        order by h.create_time desc,h.id desc limit #{limit}
+    </select>
+    <!-- Null means the target is outside qualification scope; zero is an authorized empty count. -->
+    <select id="qualificationCount" resultType="java.lang.Integer">
+        select (select count(1) from lab_qualification q
+            where q.user_id=#{applicantId} and q.del_flag='0' and q.revoked_at is null
+              and q.valid_from &lt;= #{at} and #{at} &lt; q.valid_until
+              and q.laboratory_id=d.laboratory_id
+              and ((q.scope_type='LABORATORY' and binary q.scope_id=binary cast(d.laboratory_id as char))
+                or (q.scope_type='DEVICE_CATEGORY' and q.scope_id=d.category_code)))
+        from lab_device d where d.id=#{deviceId} and d.del_flag='0'
+          and (#{applicantId}=#{viewerId}
+          <choose>
+            <when test="scope != null and scope.allLaboratories">or 1=1</when>
+            <when test="scope != null and !scope.laboratoryIds.isEmpty()">
+              or d.laboratory_id in <foreach collection="scope.laboratoryIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+            </when>
+          </choose>)
+    </select>
+</mapper>

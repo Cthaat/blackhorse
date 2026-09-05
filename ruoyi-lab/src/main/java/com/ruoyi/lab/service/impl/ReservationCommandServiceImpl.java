@@ -36,6 +36,11 @@ import com.ruoyi.lab.service.ReservationPolicy;
 import com.ruoyi.lab.service.ReservationPolicy.ValidatedReservation;
 import com.ruoyi.lab.service.ReservationRequestHasher;
 import com.ruoyi.lab.service.ReservationStateMachine;
+import com.ruoyi.lab.service.ReservationRuleService;
+import com.ruoyi.lab.service.ReservationWaitlistCoordinator;
+import com.ruoyi.lab.mapper.LabReservationWaitlistMapper;
+import com.ruoyi.lab.domain.LabReservationWaitlist;
+import org.springframework.transaction.annotation.Isolation;
 import com.ruoyi.lab.vo.ReservationVo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,6 +72,9 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
     private final LabIdempotencyStore idempotencyStore;
     private final Clock clock;
     private final LabUserDirectory userDirectory;
+    private final ReservationRuleService ruleService;
+    private final ReservationWaitlistCoordinator waitlist;
+    private final LabReservationWaitlistMapper waitlistMapper;
 
     public ReservationCommandServiceImpl(LabReservationMapper reservationMapper,
             LabDeviceMapper deviceMapper, LabLaboratoryMapper laboratoryMapper,
@@ -74,7 +82,9 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
             LabQualificationGuard qualificationGuard, LabHazardBlocker hazardBlocker,
             LabStatusHistoryService historyService, ReservationPolicy policy,
             ReservationRequestHasher requestHasher, ReservationStateMachine stateMachine,
-            LabIdempotencyStore idempotencyStore, Clock clock, LabUserDirectory userDirectory)
+            LabIdempotencyStore idempotencyStore, Clock clock, LabUserDirectory userDirectory,
+            ReservationRuleService ruleService, ReservationWaitlistCoordinator waitlist,
+            LabReservationWaitlistMapper waitlistMapper)
     {
         this.reservationMapper = reservationMapper;
         this.deviceMapper = deviceMapper;
@@ -89,10 +99,13 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
         this.idempotencyStore = idempotencyStore;
         this.clock = clock;
         this.userDirectory = userDirectory;
+        this.ruleService = ruleService;
+        this.waitlist = waitlist;
+        this.waitlistMapper = waitlistMapper;
     }
 
     @Override
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public ReservationApplyResult apply(long applicantId, String idempotencyKey,
             ReservationApplyDto request)
     {
@@ -100,7 +113,7 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
     }
 
     @Override
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public ReservationApplyResult delegate(long actorId, String idempotencyKey, ReservationDelegateDto request)
     {
         if (!Objects.equals(objectPermissionService.currentUserId(), actorId)
@@ -122,8 +135,18 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
     private ReservationApplyResult applyFor(long applicantId, long actorId, String idempotencyKey,
             ReservationApplyDto request)
     {
+        return applyFor(applicantId, actorId, idempotencyKey, request, null);
+    }
+
+    private ReservationApplyResult applyFor(long applicantId, long actorId, String idempotencyKey,
+            ReservationApplyDto request, Long claimingWaitlistId)
+    {
         requirePositive(applicantId, "用户编号无效");
         String key = requireIdempotencyKey(idempotencyKey);
+        if (claimingWaitlistId == null && key.startsWith("waitlist-"))
+        {
+            throw new LabBusinessException(LabErrorCode.VALIDATION_ERROR, "幂等键使用了系统保留前缀");
+        }
         ValidatedReservation validated = policy.validate(request);
         String requestHash = requestHasher.hash(validated, applicantId == actorId ? null : actorId);
         LocalDateTime now = LocalDateTime.now(clock);
@@ -162,6 +185,18 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
         }
 
         assertReservable(device, applicantId, validated.startTime());
+        var ruleSnapshot = ruleService.validateForApply(device.getId(), validated.startTime(), validated.endTime());
+        waitlist.reconcileLocked(device);
+        if (claimingWaitlistId != null)
+        {
+            LabReservationWaitlist offer = waitlistMapper.locked(claimingWaitlistId);
+            if (offer == null || !"OFFERED".equals(offer.getStatus())
+                    || !offer.getOfferedUntil().isAfter(LocalDateTime.now(clock)))
+            {
+                throw new LabBusinessException(LabErrorCode.LAB_WAITLIST_EXPIRED, "候补邀请无效或已过期，请刷新");
+            }
+        }
+        waitlist.assertNoHold(device.getId(), validated.startTime(), validated.endTime(), claimingWaitlistId);
         if (reservationMapper.countActiveOverlaps(device.getId(), validated.startTime(),
                 validated.endTime(), null) > 0)
         {
@@ -170,6 +205,8 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
         }
 
         LabReservation reservation = newReservation(applicantId, key, requestHash, validated, now);
+        reservation.setRuleVersionId(ruleSnapshot.rule() == null ? null : ruleSnapshot.rule().id());
+        reservation.setRuleSnapshot(ruleService.encode(ruleSnapshot));
         reservation.setSubmitterId(actorId);
         reservation.setCreateBy(Long.toString(actorId));
         reservation.setUpdateBy(Long.toString(actorId));
@@ -194,7 +231,36 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
     }
 
     @Override
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public ReservationVo confirmWaitlist(Long id, int expectedVersion, Long userId)
+    {
+        LabReservationWaitlist snapshot = waitlistMapper.selectById(id);
+        if (snapshot == null || !Objects.equals(snapshot.getApplicantId(), userId)
+                || !Objects.equals(userId, objectPermissionService.currentUserId()))
+        {
+            throw new LabBusinessException(LabErrorCode.RESOURCE_NOT_FOUND, "候补记录不存在");
+        }
+        LabDevice device = deviceMapper.selectByIdForUpdate(snapshot.getDeviceId());
+        if (device == null) { throw notFound(); }
+        LabReservationWaitlist row = waitlistMapper.locked(id);
+        if ("ACCEPTED".equals(row.getStatus()))
+        {
+            return ReservationVo.from(requireActive(row.getReservationId()));
+        }
+        if (!"OFFERED".equals(row.getStatus()) || row.getOfferedUntil() == null
+                || !row.getOfferedUntil().isAfter(LocalDateTime.now(clock)))
+        {
+            throw new LabBusinessException(LabErrorCode.LAB_WAITLIST_EXPIRED, "候补邀请无效或已过期，请刷新");
+        }
+        if (row.getVersion() != expectedVersion) { throw duplicateOperation(); }
+        ReservationApplyResult result = applyFor(userId, userId, "waitlist-" + id,
+                ReservationWaitlistCoordinator.request(row), id);
+        waitlist.change(row, "ACCEPTED", "已确认并提交预约审批", null, result.reservation().id(), LocalDateTime.now(clock));
+        return result.reservation();
+    }
+
+    @Override
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public ReservationVo approve(Long reservationId, ReservationDecisionDto command,
             Long approverId, String username)
     {
@@ -232,7 +298,7 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
     }
 
     @Override
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public ReservationVo reject(Long reservationId, ReservationDecisionDto command,
             Long approverId, String username)
     {
@@ -256,11 +322,12 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
         }
         historyService.append(OBJECT_TYPE, locked.reservation().getId(),
                 ReservationStatus.PENDING.name(), ReservationStatus.REJECTED.name(), approverId, reason);
+        waitlist.reconcileLocked(locked.device());
         return ReservationVo.from(requireActive(locked.reservation().getId()));
     }
 
     @Override
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public ReservationVo cancel(Long reservationId, ReservationCancelDto command,
             Long applicantId, String username)
     {
@@ -284,6 +351,7 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
         historyService.append(OBJECT_TYPE, locked.reservation().getId(), previous.name(),
                 ReservationStatus.CANCELLED.name(), applicantId,
                 reason == null ? "申请人取消预约" : reason);
+        waitlist.reconcileLocked(locked.device());
         return ReservationVo.from(requireActive(locked.reservation().getId()));
     }
 

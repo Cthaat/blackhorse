@@ -9,6 +9,8 @@ import com.ruoyi.lab.vo.ReservationVo;
 /** Reservation creation and lifecycle commands. */
 public interface ReservationCommandService
 {
+    ReservationVo confirmWaitlist(Long waitlistId, int expectedVersion, Long userId);
+
     ReservationApplyResult apply(long applicantId, String idempotencyKey,
             ReservationApplyDto request);
 

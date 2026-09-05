@@ -10,6 +10,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="deviceId" column="device_id" />
         <result property="applicantId" column="applicant_id" />
         <result property="submitterId" column="submitter_id" />
+        <result property="ruleVersionId" column="rule_version_id" />
+        <result property="ruleSnapshot" column="rule_snapshot" />
         <result property="startTime" column="start_time" />
         <result property="endTime" column="end_time" />
         <result property="purpose" column="purpose" />
@@ -36,7 +38,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         r.purpose, r.remark, r.status, r.approval_by, r.approval_time,
         r.approval_reason, r.cancel_time, r.cancel_reason, r.idempotency_key,
         r.request_hash, r.idempotency_expires_at, r.version, r.create_by,
-        r.create_time, r.update_by, r.update_time, r.del_flag
+        r.create_time, r.update_by, r.update_time, r.del_flag, r.rule_version_id, r.rule_snapshot
     </sql>
 
     <select id="selectActiveById" resultMap="LabReservationResult">

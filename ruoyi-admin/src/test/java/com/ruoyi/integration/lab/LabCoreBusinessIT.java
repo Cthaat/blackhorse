@@ -195,6 +195,56 @@ class LabCoreBusinessIT
         return Map.of("deviceId", device, "startTime", start.toString(), "endTime", start.plusHours(1).toString(), "purpose", "核心联调");
     }
 
+    @Test
+    void g1RulesCalendarWaitlistClaimAndSnapshotRemainConsistent() throws Exception
+    {
+        long candidate = 95006;
+        addUser(candidate, "it_candidate", "lab_student");
+        jdbc.update("insert into lab_qualification(user_id,scope_type,scope_id,laboratory_id,valid_from,valid_until) values(?,'LABORATORY','95001',95001,date_sub(now(),interval 1 day),date_add(now(),interval 30 day))", candidate);
+        var start = OffsetDateTime.now(java.time.ZoneOffset.ofHours(8)).plusDays(1).withHour(10).withMinute(0).withSecond(0).withNano(0);
+        var definition = new java.util.LinkedHashMap<String, Object>();
+        definition.put("name", "日间开放"); definition.put("weekdays", List.of(1,2,3,4,5,6,7));
+        definition.put("opensAt", "09:00"); definition.put("closesAt", "17:00"); definition.put("closedDays", List.of());
+        definition.put("minLeadMinutes", 0); definition.put("maxAdvanceDays", 10);
+        definition.put("minDurationMinutes", 30); definition.put("maxDurationMinutes", 480); definition.put("invitationMinutes", 15);
+        var draft = Map.of("deviceId", 95100, "definition", definition);
+        postJson(STUDENT, "/lab/reservation-rules", draft, null, 403);
+        JsonNode rule = postJson(MANAGER, "/lab/reservation-rules", draft, null, 200).path("data");
+        long ruleId = rule.path("id").asLong();
+        postJson(MANAGER, "/lab/reservation-rules/" + ruleId + "/commands/publish", Map.of("expectedVersion", 0), null, 200);
+        Map<String, Object> request = Map.of("deviceId", 95100, "startTime", start.toString(),
+                "endTime", start.plusHours(1).toString(), "purpose", "候补联调");
+        long reservation = postJson(STUDENT, "/lab/reservations", request, "g1-first", 201).path("data").path("id").asLong();
+        assertThat(jdbc.queryForObject("select rule_version_id from lab_reservation where id=?", Long.class, reservation)).isEqualTo(ruleId);
+        assertThat(jdbc.queryForObject("select rule_snapshot from lab_reservation where id=?", String.class, reservation)).contains("日间开放");
+        JsonNode queued = postJson(candidate, "/lab/reservation-waitlist", request, "g1-queue", 200).path("data");
+        long queuedId = queued.path("id").asLong();
+        assertThat(queued.path("status").asText()).isEqualTo("WAITING");
+        assertThat(getJson(STUDENT, "/lab/reservation-waitlist").path("total").asInt()).isZero();
+        postJson(STUDENT, "/lab/reservations/" + reservation + "/commands/cancel", Map.of("expectedVersion", 0), null, 200);
+        JsonNode offer = getJson(candidate, "/lab/reservation-waitlist").path("rows").get(0);
+        assertThat(offer.path("status").asText()).isEqualTo("OFFERED");
+        assertThat(offer.path("position").asInt()).isEqualTo(1);
+        postJson(STUDENT, "/lab/reservations", request, "g1-no-jumping", 409);
+        postJson(STUDENT, "/lab/reservation-waitlist/" + queuedId + "/commands/confirm", Map.of("expectedVersion", offer.path("version").asInt()), null, 404);
+        JsonNode claimed = postJson(candidate, "/lab/reservation-waitlist/" + queuedId + "/commands/confirm",
+                Map.of("expectedVersion", offer.path("version").asInt()), null, 200).path("data");
+        assertThat(claimed.path("status").asText()).isEqualTo("PENDING");
+        assertThat(postJson(candidate, "/lab/reservation-waitlist/" + queuedId + "/commands/confirm",
+                Map.of("expectedVersion", offer.path("version").asInt()), null, 200).path("data").path("id").asText())
+                .isEqualTo(claimed.path("id").asText());
+        definition.put("closedDays", List.of(Map.of("date", start.toLocalDate().toString(), "reason", "停机校准")));
+        long newer = postJson(MANAGER, "/lab/reservation-rules", draft, null, 200).path("data").path("id").asLong();
+        postJson(MANAGER, "/lab/reservation-rules/" + newer + "/commands/publish", Map.of("expectedVersion", 0), null, 200);
+        assertThat(getJson(candidate, "/lab/reservations/" + claimed.path("id").asText()).path("data").path("ruleVersionId").asLong()).isEqualTo(ruleId);
+        JsonNode calendar = getJson(candidate, "/lab/reservation-rules/calendar?deviceId=95100&from=" + start.toLocalDate() + "&to=" + start.toLocalDate()).path("data");
+        assertThat(calendar.path("days").get(0).path("open").asBoolean()).isFalse();
+        assertThat(calendar.path("days").get(0).path("closedReason").asText()).isEqualTo("停机校准");
+        postJson(candidate, "/lab/reservations", request, "g1-closed", 409);
+        JsonNode trace = getJson(candidate, "/lab/reservations/" + claimed.path("id").asText() + "/trace").path("data");
+        assertThat(trace.path("reservation").path("id").asText()).isEqualTo(claimed.path("id").asText());
+    }
+
     private void addUser(long id, String name, String role)
     {
         jdbc.update("insert into sys_user(user_id,dept_id,user_name,nick_name,status,del_flag) values(?,100,?,?,'0','0')", id, name, name);
