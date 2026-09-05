@@ -43,13 +43,16 @@
           <el-descriptions-item label="取消原因" :span="2">{{ detail.cancelReason || '-' }}</el-descriptions-item>
           <el-descriptions-item label="创建时间" :span="2">{{ formatDateTime(detail.createTime) }}</el-descriptions-item>
         </lab-descriptions>
+        <reservation-trace :key="`${detail.id}-${detailRevision}`" :reservation-id="detail.id" />
       </template>
     </div>
   </el-drawer>
 </template>
 
 <script setup name="LabReservationDetail">
+import { onBeforeUnmount, ref, watch } from 'vue'
 import { getReservation } from '@/api/lab/reservation'
+import ReservationTrace from './ReservationTrace.vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -62,23 +65,32 @@ const emit = defineEmits(['update:modelValue'])
 const loading = ref(false)
 const errorMessage = ref('')
 const detail = ref()
+const detailRevision = ref(0)
+let requestVersion = 0
 
 function optionLabel(options, id, prefix) {
   return options.find(item => item.id === String(id))?.label || `${prefix} ${id}`
 }
 
 async function loadDetail() {
-  if (!props.reservationId) return
+  const version = ++requestVersion
+  detail.value = undefined
+  if (!props.reservationId) { loading.value = false; return }
   loading.value = true
   errorMessage.value = ''
   try {
     const response = await getReservation(String(props.reservationId))
-    detail.value = response.data
+    if (version === requestVersion) {
+      detail.value = response.data
+      detailRevision.value++
+    }
   } catch (error) {
-    detail.value = undefined
-    errorMessage.value = error?.response?.data?.msg ?? error?.data?.msg ?? error?.message ?? '预约详情加载失败'
+    if (version === requestVersion) {
+      detail.value = undefined
+      errorMessage.value = error?.response?.data?.msg ?? error?.data?.msg ?? error?.message ?? '预约详情加载失败'
+    }
   } finally {
-    loading.value = false
+    if (version === requestVersion) loading.value = false
   }
 }
 
@@ -102,7 +114,13 @@ function formatDateTime(value) {
 
 watch(() => [props.modelValue, String(props.reservationId ?? '')], ([visible]) => {
   if (visible) loadDetail()
+  else {
+    requestVersion++
+    detail.value = undefined
+    loading.value = false
+  }
 }, { immediate: true })
+onBeforeUnmount(() => { requestVersion++ })
 </script>
 
 <style scoped>

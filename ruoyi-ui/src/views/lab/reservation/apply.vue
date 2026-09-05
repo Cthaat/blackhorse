@@ -94,7 +94,8 @@ import { createIdempotentSubmission } from '@/utils/lab/idempotency'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  delegated: { type: Boolean, default: false }
+  delegated: { type: Boolean, default: false },
+  initialRequest: { type: Object, default: null }
 })
 
 const emit = defineEmits(['update:modelValue', 'saved'])
@@ -226,7 +227,18 @@ watch(snapshot, value => {
 }, { deep: true })
 
 watch(() => props.modelValue, open => {
-  if (open) void loadDevices()
+  if (open) {
+    if (props.initialRequest) {
+      resetForm()
+      const initial = props.initialRequest
+      form.deviceId = String(initial.deviceId || '')
+      form.interval = initial.startTime && initial.endTime
+        ? [initial.startTime, initial.endTime].map(value => String(value).replace(/\+08:00$/, '')) : []
+      form.purpose = initial.purpose || ''
+      form.remark = initial.remark || ''
+    }
+    void loadDevices()
+  }
 }, { immediate: true })
 </script>
 

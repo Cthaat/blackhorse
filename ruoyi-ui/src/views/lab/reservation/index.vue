@@ -46,6 +46,7 @@
     </el-form>
 
     <el-row :gutter="10" class="mb8">
+      <el-button plain icon="Calendar" @click="workspaceOpen = true">开放日历与候补</el-button>
       <el-col v-if="!approvalMode" :span="1.5">
         <el-button type="primary" plain icon="Plus" v-hasPermi="['lab:reservation:apply']" @click="delegated = false; applyOpen = true">
           申请预约
@@ -120,7 +121,8 @@
       @pagination="getList"
     />
 
-    <ReservationApply :delegated="delegated" v-model="applyOpen" @saved="getList" />
+    <ReservationWorkspace v-model="workspaceOpen" :device-options="deviceOptions" @apply="applyFromWorkspace" @reservation="id => openDetail({ id })" @changed="getList" />
+    <ReservationApply :delegated="delegated" :initial-request="initialRequest" v-model="applyOpen" @saved="getList" />
     <ReservationDetail
       v-model="detailOpen"
       :reservation-id="detailId"
@@ -135,6 +137,7 @@ import { loadAllOptions } from '@/utils/labOptions'
 import useUserStore from '@/store/modules/user'
 import ReservationApply from './apply.vue'
 import ReservationDetail from './detail.vue'
+import ReservationWorkspace from './workspace/ReservationWorkspace.vue'
 import {
   approveReservation,
   cancelReservation,
@@ -153,6 +156,14 @@ const optionsError = ref('')
 const rows = ref([])
 const total = ref(0)
 const applyOpen = ref(false)
+const workspaceOpen = ref(false)
+const initialRequest = ref(null)
+function applyFromWorkspace(request) {
+  initialRequest.value = request
+  delegated.value = false
+  applyOpen.value = true
+}
+watch(applyOpen, open => { if (!open) initialRequest.value = null })
 const delegated = ref(false)
 const userStore = useUserStore()
 const detailOpen = ref(false)
