@@ -50,6 +50,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class LabDemoAccountInitializerTest
 {
+    private static final String ROOT_PASSWORD = "RootUnit#42Pass";
+    private static final String ROOT_HASH = new BCryptPasswordEncoder(4).encode(ROOT_PASSWORD);
     private static final long SYSTEM_OPERATOR_CONFIG_ID = 100L;
     private static final String SYSTEM_OPERATOR_CONFIG_KEY = "lab.system.operator-user-id";
     private static final String SYSTEM_OPERATOR_CONFIG_VALUE = "9000";
@@ -296,7 +298,7 @@ class LabDemoAccountInitializerTest
         manualUser.setRemark("manually-created-account");
         when(userService.selectUserByUserName(anyString()))
                 .thenAnswer(invocation -> "lab_system_admin".equals(invocation.getArgument(0, String.class))
-                        ? manualUser : null);
+                        ? manualUser : rootIfAdmin(invocation.getArgument(0, String.class)));
 
         assertThatThrownBy(() -> initializer().run(null))
                 .isInstanceOf(IllegalStateException.class)
@@ -305,7 +307,7 @@ class LabDemoAccountInitializerTest
 
         verifyNoWrites();
         verifyNoInteractions(postService);
-        verifyNoInteractions(passwordEncoder);
+        verify(passwordEncoder, never()).encode(anyString());
     }
 
     @Test
@@ -323,7 +325,7 @@ class LabDemoAccountInitializerTest
 
         verifyNoWrites();
         verifyNoInteractions(postService);
-        verifyNoInteractions(passwordEncoder);
+        verify(passwordEncoder, never()).encode(anyString());
     }
 
     @Test
@@ -334,7 +336,7 @@ class LabDemoAccountInitializerTest
         SysUser forbiddenUser = managedUser(ACCOUNTS.get(4), 9000L, "irrelevant-hash");
         when(userService.selectUserByUserName(anyString()))
                 .thenAnswer(invocation -> "lab_system_admin".equals(invocation.getArgument(0, String.class))
-                        ? forbiddenUser : null);
+                        ? forbiddenUser : rootIfAdmin(invocation.getArgument(0, String.class)));
 
         assertThatThrownBy(() -> initializer().run(null))
                 .isInstanceOf(IllegalStateException.class)
@@ -342,7 +344,7 @@ class LabDemoAccountInitializerTest
 
         verifyNoWrites();
         verifyNoInteractions(postService);
-        verifyNoInteractions(passwordEncoder);
+        verify(passwordEncoder, never()).encode(anyString());
     }
 
     @Test
@@ -355,7 +357,7 @@ class LabDemoAccountInitializerTest
         Map<Long, List<Long>> assignedRoles = new HashMap<>();
         AtomicLong nextUserId = new AtomicLong(10000L);
         when(userService.selectUserByUserName(anyString()))
-                .thenAnswer(invocation -> users.get(invocation.getArgument(0, String.class)));
+                .thenAnswer(invocation -> users.getOrDefault(invocation.getArgument(0, String.class), rootIfAdmin(invocation.getArgument(0, String.class))));
         when(userService.insertUser(any(SysUser.class))).thenAnswer(invocation -> {
             SysUser user = invocation.getArgument(0, SysUser.class);
             user.setUserId(nextUserId.getAndIncrement());
@@ -407,7 +409,7 @@ class LabDemoAccountInitializerTest
         assignedPosts.put(safetyOfficer.getUserId(), List.of(1L));
         clearInvocations(passwordEncoder);
         when(userService.selectUserByUserName(anyString()))
-                .thenAnswer(invocation -> users.get(invocation.getArgument(0, String.class)));
+                .thenAnswer(invocation -> users.getOrDefault(invocation.getArgument(0, String.class), rootIfAdmin(invocation.getArgument(0, String.class))));
         when(roleService.selectRoleListByUserId(anyLong()))
                 .thenAnswer(invocation -> assignedRoles.get(invocation.getArgument(0, Long.class)));
         when(postService.selectPostListByUserId(anyLong()))
@@ -464,7 +466,7 @@ class LabDemoAccountInitializerTest
         student.setAvatar("profile/avatar.png");
         clearInvocations(passwordEncoder);
         when(userService.selectUserByUserName(anyString()))
-                .thenAnswer(invocation -> users.get(invocation.getArgument(0, String.class)));
+                .thenAnswer(invocation -> users.getOrDefault(invocation.getArgument(0, String.class), rootIfAdmin(invocation.getArgument(0, String.class))));
         when(roleService.selectRoleListByUserId(anyLong()))
                 .thenAnswer(invocation -> assignedRoles.get(invocation.getArgument(0, Long.class)));
         when(postService.selectPostListByUserId(anyLong())).thenReturn(List.of());
@@ -473,7 +475,7 @@ class LabDemoAccountInitializerTest
 
         verifyNoWrites();
         verify(passwordEncoder, never()).encode(anyString());
-        verify(passwordEncoder, times(5)).matches(anyString(), anyString());
+        verify(passwordEncoder, times(6)).matches(anyString(), anyString());
     }
 
     private LabDemoAccountInitializer initializer()
@@ -489,6 +491,11 @@ class LabDemoAccountInitializerTest
 
     private void enableWithValidSecrets()
     {
+        lenient().when(environment.getProperty("LAB_ROOT_ADMIN_PASSWORD")).thenReturn(ROOT_PASSWORD);
+        lenient().when(jdbcTemplate.queryForObject(
+                "select count(*) from sys_user where user_id = ? or user_name = ?",
+                Integer.class, 1L, "admin")).thenReturn(1);
+        lenient().when(userService.selectUserByUserName("admin")).thenReturn(rootIfAdmin("admin"));
         lenient().when(environment.getProperty("LAB_DEMO_DATA_ENABLED")).thenReturn("true");
         lenient().when(environment.getActiveProfiles()).thenReturn(new String[] { "test" });
         lenient().when(jdbcTemplate.queryForList(LOCK_SYSTEM_OPERATOR_CONFIG_SQL, String.class,
@@ -500,6 +507,17 @@ class LabDemoAccountInitializerTest
             lenient().when(jdbcTemplate.queryForObject(
                     COUNT_ANY_USER_NAME_SQL, Integer.class, account.userName())).thenReturn(0);
         }
+    }
+
+    private static SysUser rootIfAdmin(String name)
+    {
+        if (!"admin".equals(name)) return null;
+        SysUser root = new SysUser(1L);
+        root.setUserName("admin");
+        root.setStatus("0");
+        root.setDelFlag("0");
+        root.setPassword(ROOT_HASH);
+        return root;
     }
 
     private void stubValidRoles()

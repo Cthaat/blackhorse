@@ -36,7 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(classes = LabOpenApiTestApplication.class)
 @AutoConfigureMockMvc
 @ActiveProfiles("prod")
-class LabOpenApiProdIT
+class LabOpenApiProdIT extends LabOpenApiServiceMocks
 {
     private static final String TRACE_ID = "223e4567-e89b-12d3-a456-426614174000";
 

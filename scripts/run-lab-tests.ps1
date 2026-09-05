@@ -170,7 +170,7 @@ if ($adminHost -notin @('localhost', '127.0.0.1') -or
 
 $startInfo = New-Object System.Diagnostics.ProcessStartInfo
 $startInfo.FileName = $hostExecutablePath
-$startInfo.Arguments = '-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' +
+$startInfo.Arguments = '-NoLogo -NoProfile -NonInteractive -OutputFormat Text -ExecutionPolicy Bypass -File "' +
     $workerPath + '"'
 $startInfo.WorkingDirectory = $repoRoot
 $startInfo.UseShellExecute = $false

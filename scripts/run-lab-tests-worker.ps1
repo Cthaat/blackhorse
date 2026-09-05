@@ -650,6 +650,7 @@ try
         # before Maven can execute tests against the freshly rebuilt database.
         & $windowsPowerShellPath `
             -NoProfile `
+            -OutputFormat Text `
             -ExecutionPolicy Bypass `
             -File $resetScript `
             -DatabaseName $DatabaseName

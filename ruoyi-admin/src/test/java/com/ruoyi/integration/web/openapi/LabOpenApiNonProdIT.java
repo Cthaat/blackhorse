@@ -48,24 +48,6 @@ import com.ruoyi.framework.security.handle.AuthenticationEntryPointImpl;
 import com.ruoyi.framework.security.handle.LogoutSuccessHandlerImpl;
 import com.ruoyi.framework.web.filter.TraceIdFilter;
 import com.ruoyi.framework.web.service.TokenService;
-import com.ruoyi.lab.service.AttachmentService;
-import com.ruoyi.lab.service.DashboardService;
-import com.ruoyi.lab.service.DeviceService;
-import com.ruoyi.lab.service.DeviceStatusCommandService;
-import com.ruoyi.lab.service.HazardService;
-import com.ruoyi.lab.service.InspectionPlanService;
-import com.ruoyi.lab.service.InspectionTaskService;
-import com.ruoyi.lab.service.LaboratoryService;
-import com.ruoyi.lab.service.NotificationService;
-import com.ruoyi.lab.service.QualificationService;
-import com.ruoyi.lab.service.RectificationService;
-import com.ruoyi.lab.service.RepairOrderService;
-import com.ruoyi.lab.service.RepairQueryService;
-import com.ruoyi.lab.service.ReservationCommandService;
-import com.ruoyi.lab.service.ReservationQueryService;
-import com.ruoyi.lab.service.StatusHistoryQueryService;
-import com.ruoyi.lab.service.UsageCommandService;
-import com.ruoyi.lab.service.UsageQueryService;
 import com.ruoyi.web.core.config.SwaggerConfig;
 import com.github.xiaoymin.knife4j.spring.extension.Knife4jOpenApiCustomizer;
 
@@ -82,7 +64,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(classes = LabOpenApiTestApplication.class)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-class LabOpenApiNonProdIT
+class LabOpenApiNonProdIT extends LabOpenApiServiceMocks
 {
     private static final String TRACE_ID = "123e4567-e89b-12d3-a456-426614174000";
 
@@ -104,24 +86,6 @@ class LabOpenApiNonProdIT
     @MockitoBean
     private PermitAllUrlProperties permitAllUrlProperties;
 
-    @MockitoBean private AttachmentService attachmentService;
-    @MockitoBean private DashboardService dashboardService;
-    @MockitoBean private DeviceService deviceService;
-    @MockitoBean private DeviceStatusCommandService deviceStatusCommandService;
-    @MockitoBean private HazardService hazardService;
-    @MockitoBean private InspectionPlanService inspectionPlanService;
-    @MockitoBean private InspectionTaskService inspectionTaskService;
-    @MockitoBean private LaboratoryService laboratoryService;
-    @MockitoBean private NotificationService notificationService;
-    @MockitoBean private QualificationService qualificationService;
-    @MockitoBean private RectificationService rectificationService;
-    @MockitoBean private RepairOrderService repairOrderService;
-    @MockitoBean private RepairQueryService repairQueryService;
-    @MockitoBean private ReservationCommandService reservationCommandService;
-    @MockitoBean private ReservationQueryService reservationQueryService;
-    @MockitoBean private StatusHistoryQueryService statusHistoryQueryService;
-    @MockitoBean private UsageCommandService usageCommandService;
-    @MockitoBean private UsageQueryService usageQueryService;
 
     @DynamicPropertySource
     static void configureProfileRoot(DynamicPropertyRegistry registry)
