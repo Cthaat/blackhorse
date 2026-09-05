@@ -285,9 +285,12 @@ function openDetail(row) {
 }
 
 watch(
-  () => [route.name, route.params.id],
+  () => [route.name, route.params.id, route.query.deviceId],
   ([name, id]) => {
     if (name === 'LabReservationApply') {
+      if (typeof route.query.deviceId === 'string' && /^[1-9]\d*$/.test(route.query.deviceId)) {
+        initialRequest.value = { deviceId: route.query.deviceId }
+      }
       applyOpen.value = true
     }
     if (name === 'LabReservationDetail' && id) {

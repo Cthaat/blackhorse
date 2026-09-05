@@ -203,7 +203,7 @@ const queryParams = reactive({
   pageNum: 1,
   pageSize: 10,
   repairNo: '',
-  deviceId: '',
+  deviceId: typeof route.query.deviceId === 'string' && /^[1-9]\d*$/.test(route.query.deviceId) ? route.query.deviceId : '',
   status: '',
   sortBy: 'createTime',
   sortDirection: 'desc'
@@ -260,13 +260,18 @@ watch(
 )
 
 async function openReport() {
-  reportForm.deviceId = ''
+  reportForm.deviceId = typeof route.query.deviceId === 'string' && /^[1-9]\d*$/.test(route.query.deviceId) ? route.query.deviceId : ''
   reportForm.description = ''
   reportError.value = ''
   reportOpen.value = true
   if (!devices.value.length) await loadDeviceOptions(reportError)
   nextTick(() => reportRef.value?.clearValidate())
 }
+
+watch(() => route.query.deviceId, id => {
+  queryParams.deviceId = typeof id === 'string' && /^[1-9]\d*$/.test(id) ? id : ''
+  handleQuery()
+})
 
 async function submitReport() {
   if (!await reportRef.value?.validate().catch(() => false)) return

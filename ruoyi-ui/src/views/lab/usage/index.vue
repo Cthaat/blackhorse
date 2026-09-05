@@ -173,6 +173,7 @@ import { listReservations } from '@/api/lab/reservation'
 import { checkOutDevice, getUsageRecord, listUsageRecords, returnDevice } from '@/api/lab/usage'
 
 const { proxy } = getCurrentInstance()
+const route = useRoute()
 const { lab_return_condition } = useDict('lab_return_condition')
 const queryRef = ref()
 const checkoutRef = ref()
@@ -217,7 +218,7 @@ const queryParams = reactive({
   pageNum: 1,
   pageSize: 10,
   reservationNo: '',
-  assetNo: '',
+  assetNo: typeof route.query.assetNo === 'string' ? route.query.assetNo : '',
   returnCondition: '',
   checkedOutRange: [],
   sortBy: 'id',
@@ -259,6 +260,11 @@ function handleQuery() {
   getList()
 }
 
+watch(() => route.query.assetNo, assetNo => {
+  queryParams.assetNo = typeof assetNo === 'string' ? assetNo : ''
+  handleQuery()
+})
+
 function resetQuery() {
   queryRef.value?.resetFields()
   queryParams.checkedOutRange = []
@@ -272,7 +278,8 @@ async function openCheckout() {
   checkoutForm.note = ''
   reservationLoading.value = true
   try {
-    const response = await loadAllOptions(listReservations, { status: 'APPROVED', sortBy: 'startTime', sortDirection: 'asc' })
+    const deviceId = typeof route.query.deviceId === 'string' && /^[1-9]\d*$/.test(route.query.deviceId) ? route.query.deviceId : undefined
+    const response = await loadAllOptions(listReservations, { deviceId, status: 'APPROVED', sortBy: 'startTime', sortDirection: 'asc' })
     approvedReservations.value = Array.isArray(response.rows) ? response.rows : []
   } catch (error) {
     approvedReservations.value = []

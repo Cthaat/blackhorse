@@ -15,6 +15,7 @@
 
     <div v-loading="loading" class="detail-body">
       <template v-if="device">
+        <DeviceActions :device="device" />
         <lab-descriptions :column="2" border class="mb20">
           <el-descriptions-item label="资产编号">{{ device.assetNo }}</el-descriptions-item>
           <el-descriptions-item label="设备名称">{{ device.name }}</el-descriptions-item>
@@ -93,6 +94,7 @@ import { parseTime } from '@/utils/ruoyi'
 import { getDevice, listOccupiedRanges } from '@/api/lab/device'
 import AttachmentPanel from '@/components/lab/AttachmentPanel.vue'
 import StatusHistory from '@/components/lab/StatusHistory.vue'
+import DeviceActions from '@/components/lab/DeviceActions.vue'
 
 const { proxy } = getCurrentInstance()
 const { lab_device_status, lab_risk_level, lab_device_category } = useDict(

@@ -1,0 +1,85 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { mount, flushPromises } from '@vue/test-utils'
+import ElementPlus from 'element-plus'
+import AssetScan from '@/views/lab/asset-scan/index.vue'
+import { listDevice } from '@/api/lab/device'
+
+const camera = vi.hoisted(() => ({ decode: vi.fn(), push: vi.fn() }))
+vi.mock('@zxing/browser', () => ({ BrowserQRCodeReader: class { decodeFromStream(...args) { return camera.decode(...args) } } }))
+vi.mock('vue-router', () => ({ useRouter: () => ({ push: camera.push }) }))
+vi.mock('@/api/lab/device', () => ({ listDevice: vi.fn() }))
+const mountScan = () => mount(AssetScan, { global: { plugins: [ElementPlus] } })
+describe('asset camera lifecycle', () => {
+  beforeEach(() => { vi.clearAllMocks(); vi.stubGlobal('isSecureContext', true) })
+  it('does not request the camera on mount; insecure click explains fallback', async () => {
+    const getUserMedia = vi.fn()
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia } })
+    const wrapper = mountScan()
+    expect(getUserMedia).not.toHaveBeenCalled()
+    vi.stubGlobal('isSecureContext', false)
+    await wrapper.findAll('button')[0].trigger('click')
+    expect(getUserMedia).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('当前环境无法使用摄像头')
+    wrapper.unmount()
+  })
+  it('releases tracks when permission resolves after unmount', async () => {
+    let resolve
+    const track = { stop: vi.fn() }
+    const getUserMedia = vi.fn(() => new Promise(done => { resolve = done }))
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia } })
+    const wrapper = mountScan()
+    await wrapper.findAll('button')[0].trigger('click')
+    await wrapper.findAll('button')[1].trigger('click')
+    await wrapper.findAll('button')[0].trigger('click')
+    expect(getUserMedia).toHaveBeenCalledOnce()
+    wrapper.unmount()
+    resolve({ getTracks: () => [track] })
+    await flushPromises()
+    expect(track.stop).toHaveBeenCalledOnce()
+    expect(camera.decode).not.toHaveBeenCalled()
+  })
+  it('cleans active decoding and rejects an external QR without navigation', async () => {
+    const track = { stop: vi.fn() }, controls = { stop: vi.fn() }
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [track] }) } })
+    camera.decode.mockResolvedValue(controls)
+    const wrapper = mountScan()
+    await wrapper.findAll('button')[0].trigger('click')
+    await flushPromises()
+    camera.decode.mock.calls[0][2]({ getText: () => 'https://evil.test/lab/device/detail/1' })
+    await flushPromises()
+    expect(camera.push).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('不是本站设备标签')
+    wrapper.unmount()
+    expect(controls.stop).toHaveBeenCalled()
+    expect(track.stop).toHaveBeenCalled()
+  })
+  it('finds an exact asset number beyond the first matching page', async () => {
+    listDevice.mockResolvedValueOnce({ rows: [{ id: '1', assetNo: 'LAB-001-X' }], total: 2 })
+      .mockResolvedValueOnce({ rows: [{ id: '2', assetNo: 'LAB-001' }], total: 2 })
+    const wrapper = mountScan()
+    await wrapper.find('input').setValue('LAB-001')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(listDevice).toHaveBeenCalledTimes(2)
+    expect(camera.push).toHaveBeenCalledWith('/lab/device/detail/2')
+    wrapper.unmount()
+  })
+  it('keeps the submitted asset number stable and ignores results after leaving', async () => {
+    let resolve
+    listDevice.mockImplementationOnce(() => new Promise(done => { resolve = done }))
+    const wrapper = mountScan()
+    await wrapper.find('input').setValue('LAB-A')
+    await wrapper.find('form').trigger('submit')
+    await wrapper.find('input').setValue('LAB-B')
+    resolve({ rows: [{ id: '1', assetNo: 'LAB-A' }], total: 1 })
+    await flushPromises()
+    expect(camera.push).toHaveBeenCalledWith('/lab/device/detail/1')
+    camera.push.mockClear()
+    listDevice.mockImplementationOnce(() => new Promise(done => { resolve = done }))
+    await wrapper.find('form').trigger('submit')
+    wrapper.unmount()
+    resolve({ rows: [{ id: '2', assetNo: 'LAB-B' }], total: 1 })
+    await flushPromises()
+    expect(camera.push).not.toHaveBeenCalled()
+  })
+})

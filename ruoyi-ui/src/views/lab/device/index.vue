@@ -34,6 +34,7 @@
 
     <el-row :gutter="10" class="mb8">
       <AsyncExportButton kind="DEVICE" :filters="queryParams" />
+      <el-col :span="1.5"><el-button v-hasPermi="['lab:device:query']" :disabled="!selectedIds.length || selectedIds.length > 100" @click="labelsRef.open(selectedIds)">批量打印标签（{{ selectedIds.length }}/100）</el-button></el-col>
       <el-col :span="1.5">
         <el-button type="primary" plain icon="Plus" @click="handleAdd" v-hasPermi="['lab:device:add']">
           新增设备
@@ -55,7 +56,8 @@
 
     <p class="lab-table-hint">左右滑动表格可查看完整信息与操作</p>
 
-    <el-table v-loading="loading" :data="deviceList" @row-dblclick="handleDetail">
+    <el-table v-loading="loading" :data="deviceList" @selection-change="selectedIds = $event.map(row => row.id)" @row-dblclick="handleDetail">
+      <el-table-column type="selection" width="48" />
       <el-table-column label="资产编号" prop="assetNo" min-width="150" show-overflow-tooltip />
       <el-table-column label="设备名称" prop="name" min-width="150" show-overflow-tooltip />
       <el-table-column label="设备类别" width="140" show-overflow-tooltip>
@@ -197,11 +199,13 @@
     </el-dialog>
 
     <device-detail ref="detailRef" :laboratory-options="laboratoryOptions" :user-options="userOptions" />
+    <AssetLabels ref="labelsRef" />
   </div>
 </template>
 
 <script setup name="LabDevices">
 import AsyncExportButton from '@/components/lab/AsyncExportButton.vue'
+import AssetLabels from '@/components/lab/AssetLabels.vue'
 import { loadAllOptions } from '@/utils/labOptions'
 import { parseTime, selectDictLabel } from '@/utils/ruoyi'
 import { listLaboratory } from '@/api/lab/laboratory'
@@ -238,6 +242,7 @@ const statusOpen = ref(false)
 const statusSubmitting = ref(false)
 const statusRow = ref(null)
 const detailRef = ref()
+const labelsRef = ref(), selectedIds = ref([])
 
 const canListLaboratory = computed(() => proxy.$auth.hasPermi('lab:laboratory:list'))
 
@@ -445,13 +450,13 @@ function handleDetail(row) {
 }
 
 watch(
-  () => [route.name, route.params.id],
-  ([name, id]) => {
-    if (name === 'LabDeviceDetail' && id) {
-      nextTick(() => detailRef.value?.open(String(id)))
+  () => [route.name, route.params.id, detailRef.value],
+  ([name, id, detail]) => {
+    if (name === 'LabDeviceDetail' && id && detail) {
+      detail.open(String(id))
     }
   },
-  { immediate: true }
+  { immediate: true, flush: 'post' }
 )
 
 function handleQuery() {

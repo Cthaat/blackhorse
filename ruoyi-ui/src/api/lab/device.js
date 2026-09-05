@@ -8,6 +8,13 @@ import {
 
 const SORT_FIELDS = ['assetNo', 'name', 'status', 'createTime']
 
+export function getAssetLabels(deviceIds) {
+  if (!Array.isArray(deviceIds) || deviceIds.length < 1 || deviceIds.length > 100
+    || new Set(deviceIds).size !== deviceIds.length) throw new Error('请选择 1 至 100 台不同设备')
+  deviceIds.forEach(id => encodeStringId(id))
+  return request({ url: '/lab/asset-labels', method: 'post', data: { deviceIds } })
+}
+
 export function listDevice(query = {}) {
   const params = normalizeListQuery(query, SORT_FIELDS, 'createTime')
   params.laboratoryId = requireOptionalStringId(params.laboratoryId, 'laboratoryId')
