@@ -35,6 +35,8 @@ server:
 logging:
   level:
     com.ruoyi: debug
+    # Business SQL parameters may contain private task inputs and message snapshots.
+    com.ruoyi.lab.mapper: info
     org.springframework: warn
 
 # 用户配置

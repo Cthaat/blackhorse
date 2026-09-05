@@ -46,6 +46,7 @@
     </el-form>
 
     <el-row :gutter="10" class="mb8">
+      <AsyncExportButton kind="RESERVATION" :filters="buildExportFilters()" />
       <el-button plain icon="Calendar" @click="workspaceOpen = true">开放日历与候补</el-button>
       <el-col v-if="!approvalMode" :span="1.5">
         <el-button type="primary" plain icon="Plus" v-hasPermi="['lab:reservation:apply']" @click="delegated = false; applyOpen = true">
@@ -133,6 +134,10 @@
 </template>
 
 <script setup name="LabReservation">
+import AsyncExportButton from '@/components/lab/AsyncExportButton.vue'
+function buildExportFilters() {
+  return { ...queryParams, from: queryParams.dateRange?.[0] ? queryParams.dateRange[0]+'T00:00:00+08:00' : '', to: queryParams.dateRange?.[1] ? queryParams.dateRange[1]+'T23:59:59+08:00' : '' }
+}
 import { loadAllOptions } from '@/utils/labOptions'
 import useUserStore from '@/store/modules/user'
 import ReservationApply from './apply.vue'

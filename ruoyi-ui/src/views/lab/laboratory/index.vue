@@ -23,6 +23,7 @@
     </el-form>
 
     <el-row :gutter="10" class="mb8">
+      <AsyncExportButton kind="LABORATORY" :filters="queryParams" />
       <el-col :span="1.5">
         <el-button type="primary" plain icon="Plus" @click="handleAdd" v-hasPermi="['lab:laboratory:add']">
           新增实验室
@@ -184,6 +185,7 @@
 </template>
 
 <script setup name="LabLaboratories">
+import AsyncExportButton from '@/components/lab/AsyncExportButton.vue'
 import { parseTime } from '@/utils/ruoyi'
 import {
   addLaboratory,

@@ -33,6 +33,7 @@
     </el-form>
 
     <el-row :gutter="10" class="mb8">
+      <AsyncExportButton kind="DEVICE" :filters="queryParams" />
       <el-col :span="1.5">
         <el-button type="primary" plain icon="Plus" @click="handleAdd" v-hasPermi="['lab:device:add']">
           新增设备
@@ -200,6 +201,7 @@
 </template>
 
 <script setup name="LabDevices">
+import AsyncExportButton from '@/components/lab/AsyncExportButton.vue'
 import { loadAllOptions } from '@/utils/labOptions'
 import { parseTime, selectDictLabel } from '@/utils/ruoyi'
 import { listLaboratory } from '@/api/lab/laboratory'

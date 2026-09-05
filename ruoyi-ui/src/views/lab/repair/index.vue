@@ -28,6 +28,7 @@
     </el-form>
 
     <el-row :gutter="10" class="mb8">
+      <AsyncExportButton kind="REPAIR" :filters="queryParams" />
       <el-col :span="1.5">
         <el-button type="danger" plain icon="Warning" v-hasPermi="['lab:repair:report']" @click="openReport">
           报告故障
@@ -141,6 +142,7 @@
 </template>
 
 <script setup name="LabRepair">
+import AsyncExportButton from '@/components/lab/AsyncExportButton.vue'
 import { loadAllOptions } from '@/utils/labOptions'
 import RepairDetail from './detail.vue'
 import {

@@ -24,6 +24,7 @@
       <el-form-item><el-button type="primary" icon="Search" @click="handleQuery">搜索</el-button><el-button icon="Refresh" @click="resetQuery">重置</el-button></el-form-item>
     </el-form>
     <el-row :gutter="10" class="mb8">
+      <AsyncExportButton kind="HAZARD" :filters="query" />
       <el-col :span="1.5"><el-button type="primary" plain icon="Plus" v-hasPermi="['lab:hazard:add']" @click="openCreate">登记隐患</el-button></el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="loadHazards" />
     </el-row>
@@ -63,6 +64,7 @@
 </template>
 
 <script setup>
+import AsyncExportButton from '@/components/lab/AsyncExportButton.vue'
 import { loadAllOptions } from '@/utils/labOptions'
 import { getCurrentInstance, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
