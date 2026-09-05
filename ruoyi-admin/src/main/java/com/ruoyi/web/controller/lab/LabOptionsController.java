@@ -1,6 +1,8 @@
 package com.ruoyi.web.controller.lab;
 
-import com.ruoyi.common.core.controller.BaseController;
+import com.github.pagehelper.PageInfo;
+import java.util.List;
+import java.util.function.Supplier;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.lab.dto.LabUserOptionQueryDto;
 import com.ruoyi.lab.service.LabOptionsService;
@@ -15,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Validated
 @RestController
 @RequestMapping("/lab/options")
-public class LabOptionsController extends BaseController
+public class LabOptionsController extends LabBaseController
 {
     private final LabOptionsService optionsService;
 
@@ -28,13 +30,24 @@ public class LabOptionsController extends BaseController
     @GetMapping("/users")
     public AjaxResult users(@Valid LabUserOptionQueryDto query)
     {
-        return success(optionsService.users(query));
+        return options(() -> optionsService.users(query));
     }
 
     @PreAuthorize("@ss.hasAnyRoles('lab_manager,lab_safety_officer,lab_system_admin')")
     @GetMapping("/departments")
     public AjaxResult departments()
     {
-        return success(optionsService.departments());
+        return options(optionsService::departments);
+    }
+
+    private AjaxResult options(Supplier<? extends List<?>> supplier)
+    {
+        startPage();
+        try
+        {
+            List<?> rows = supplier.get();
+            return success(rows).put("total", new PageInfo<>(rows).getTotal());
+        }
+        finally { clearPage(); }
     }
 }

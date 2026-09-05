@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import com.ruoyi.lab.service.LabPage;
 import java.util.Objects;
 import java.util.UUID;
 import com.ruoyi.lab.domain.HazardSeverity;
@@ -137,8 +138,9 @@ public class HazardServiceImpl implements HazardService
     @Override
     public List<LabHazard> list(HazardStatus status, HazardSeverity severity, Long ownerId)
     {
-        return hazardMapper.selectListByScope(dataScopeService.resolveCurrentScope(),
-                permissionService.currentUserId(), ownerId, status, severity);
+        var scope = dataScopeService.resolveCurrentScope();
+        return LabPage.query(() -> hazardMapper.selectListByScope(scope,
+                permissionService.currentUserId(), ownerId, status, severity));
     }
 
     @Override

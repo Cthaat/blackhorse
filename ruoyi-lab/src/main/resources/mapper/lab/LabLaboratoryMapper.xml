@@ -59,7 +59,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         </if>
         <choose>
             <when test="sort != null">
-                order by ${sort.column} ${sort.direction}
+                order by ${sort.column} ${sort.direction}, l.id asc
             </when>
             <otherwise>
                 order by l.create_time desc

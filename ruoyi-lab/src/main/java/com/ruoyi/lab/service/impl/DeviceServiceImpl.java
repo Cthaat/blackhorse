@@ -3,6 +3,7 @@ package com.ruoyi.lab.service.impl;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import com.ruoyi.lab.service.LabPage;
 import java.util.Objects;
 import com.ruoyi.lab.domain.DeviceStatus;
 import com.ruoyi.lab.domain.LabDevice;
@@ -74,9 +75,8 @@ public class DeviceServiceImpl implements DeviceService
         LabDataScope scope = dataScopeService.resolveCurrentScope();
         LabSortWhitelist.SortClause sort = sortWhitelist.resolve("device",
                 defaultValue(sortBy, "createTime"), defaultValue(sortDirection, "desc"));
-        return deviceMapper.selectListByScope(scope, scope.userId(), LocalDateTime.now(clock),
-                laboratoryId, trimToNull(categoryCode), status, trimToNull(keyword), sort)
-                .stream().map(DeviceVo::from).toList();
+        return LabPage.query(() -> deviceMapper.selectListByScope(scope, scope.userId(), LocalDateTime.now(clock),
+                laboratoryId, trimToNull(categoryCode), status, trimToNull(keyword), sort), DeviceVo::from);
     }
 
     @Override
@@ -120,7 +120,7 @@ public class DeviceServiceImpl implements DeviceService
         String categoryCode = requireActiveCategory(input.getCategoryCode());
         assertManagerCanManageLaboratory(input.getManagerId(), input.getLaboratoryId());
         LabDevice device = details(input.getAssetNo(), input.getLaboratoryId(), input.getName(),
-                categoryCode, input.getModel(), input.getRiskLevel(), input.getLocation(),
+                categoryCode, input.getModel(), requireActiveRisk(input.getRiskLevel()), input.getLocation(),
                 input.getManagerId(), input.getDescription(), username);
         device.setStatus(DeviceStatus.AVAILABLE);
         device.setVersion(0);
@@ -143,7 +143,7 @@ public class DeviceServiceImpl implements DeviceService
         String categoryCode = requireActiveCategory(input.getCategoryCode());
         assertManagerCanManageLaboratory(input.getManagerId(), input.getLaboratoryId());
         LabDevice device = details(input.getAssetNo(), input.getLaboratoryId(), input.getName(),
-                categoryCode, input.getModel(), input.getRiskLevel(), input.getLocation(),
+                categoryCode, input.getModel(), requireActiveRisk(input.getRiskLevel()), input.getLocation(),
                 input.getManagerId(), input.getDescription(), username);
         device.setId(id);
         if (deviceMapper.updateDetailsConditionally(device, input.getExpectedVersion()) != 1)
@@ -160,12 +160,22 @@ public class DeviceServiceImpl implements DeviceService
         {
             throw new LabBusinessException(LabErrorCode.VALIDATION_ERROR, "占用时间范围无效");
         }
-        if (java.time.Duration.between(from, to).toDays() > 30)
+        if (java.time.Duration.between(from, to).compareTo(java.time.Duration.ofDays(30)) > 0)
         {
             throw new LabBusinessException(LabErrorCode.VALIDATION_ERROR, "占用时间范围不能超过三十天");
         }
         objectPermissionService.assertDeviceReadable(id);
         return reservationMapper.selectOccupiedRanges(id, from, to);
+    }
+
+    private String requireActiveRisk(String riskLevel)
+    {
+        String normalized = requireText(riskLevel);
+        if (dictionaryMapper.countEnabledValue("lab_risk_level", normalized) <= 0)
+        {
+            throw new LabBusinessException(LabErrorCode.VALIDATION_ERROR, "设备风险等级无效或已停用");
+        }
+        return normalized;
     }
 
     private String requireActiveCategory(String categoryCode)

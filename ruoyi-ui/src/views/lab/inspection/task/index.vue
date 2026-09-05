@@ -35,6 +35,7 @@
 </template>
 
 <script setup>
+import { loadAllOptions } from '@/utils/labOptions'
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { listInspectionTasks } from '@/api/lab/inspection'
@@ -60,7 +61,7 @@ function laboratoryLabel(id) { return laboratoryOptions.value.find(item => item.
 function userLabel(id) { return userOptions.value.find(item => item.id === String(id))?.label || `用户 ${id}` }
 async function loadOptions() {
   await Promise.allSettled([
-    listLaboratory({ pageNum: 1, pageSize: 200, sortBy: 'name', sortDirection: 'asc' }).then(response => {
+    loadAllOptions(listLaboratory, { sortBy: 'name', sortDirection: 'asc' }).then(response => {
       laboratoryOptions.value = (response.rows || []).map(item => ({ id: String(item.id), label: `${item.labCode} · ${item.name}` }))
     }),
     listLabUserOptions({ roleKey: 'lab_safety_officer' }).then(response => {

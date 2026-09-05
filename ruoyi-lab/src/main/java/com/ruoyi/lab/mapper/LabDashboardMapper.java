@@ -15,7 +15,8 @@ public interface LabDashboardMapper
     long countPendingInspections(@Param("userId") Long userId, @Param("scope") LabDataScope scope);
     long countOpenHazards(@Param("userId") Long userId, @Param("scope") LabDataScope scope);
     long countUnreadNotifications(@Param("userId") Long userId);
-    List<LabMetricVo> countDeviceStates(@Param("scope") LabDataScope scope);
+    List<LabMetricVo> countDeviceStates(@Param("scope") LabDataScope scope,
+            @Param("readableAt") LocalDateTime readableAt);
     List<LabMetricVo> countReservationStates(@Param("userId") Long userId,
             @Param("scope") LabDataScope scope,
             @Param("windowStart") LocalDateTime windowStart,

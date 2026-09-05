@@ -166,6 +166,7 @@
 </template>
 
 <script setup name="LabUsage">
+import { loadAllOptions } from '@/utils/labOptions'
 import { listReservations } from '@/api/lab/reservation'
 import { checkOutDevice, getUsageRecord, listUsageRecords, returnDevice } from '@/api/lab/usage'
 
@@ -269,7 +270,7 @@ async function openCheckout() {
   checkoutForm.note = ''
   reservationLoading.value = true
   try {
-    const response = await listReservations({ pageNum: 1, pageSize: 200, status: 'APPROVED', sortBy: 'startTime', sortDirection: 'asc' })
+    const response = await loadAllOptions(listReservations, { status: 'APPROVED', sortBy: 'startTime', sortDirection: 'asc' })
     approvedReservations.value = Array.isArray(response.rows) ? response.rows : []
   } catch (error) {
     approvedReservations.value = []

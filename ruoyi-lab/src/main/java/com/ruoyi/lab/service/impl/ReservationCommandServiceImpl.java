@@ -14,6 +14,9 @@ import com.ruoyi.lab.domain.LabReservation;
 import com.ruoyi.lab.domain.LaboratoryStatus;
 import com.ruoyi.lab.domain.ReservationStatus;
 import com.ruoyi.lab.dto.ReservationApplyDto;
+import com.ruoyi.lab.dto.ReservationDelegateDto;
+import com.ruoyi.lab.service.LabUserDirectory;
+import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.lab.dto.ReservationCancelDto;
 import com.ruoyi.lab.dto.ReservationDecisionDto;
 import com.ruoyi.lab.exception.LabBusinessException;
@@ -63,6 +66,7 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
     private final ReservationStateMachine stateMachine;
     private final LabIdempotencyStore idempotencyStore;
     private final Clock clock;
+    private final LabUserDirectory userDirectory;
 
     public ReservationCommandServiceImpl(LabReservationMapper reservationMapper,
             LabDeviceMapper deviceMapper, LabLaboratoryMapper laboratoryMapper,
@@ -70,7 +74,7 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
             LabQualificationGuard qualificationGuard, LabHazardBlocker hazardBlocker,
             LabStatusHistoryService historyService, ReservationPolicy policy,
             ReservationRequestHasher requestHasher, ReservationStateMachine stateMachine,
-            LabIdempotencyStore idempotencyStore, Clock clock)
+            LabIdempotencyStore idempotencyStore, Clock clock, LabUserDirectory userDirectory)
     {
         this.reservationMapper = reservationMapper;
         this.deviceMapper = deviceMapper;
@@ -84,6 +88,7 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
         this.stateMachine = stateMachine;
         this.idempotencyStore = idempotencyStore;
         this.clock = clock;
+        this.userDirectory = userDirectory;
     }
 
     @Override
@@ -91,10 +96,36 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
     public ReservationApplyResult apply(long applicantId, String idempotencyKey,
             ReservationApplyDto request)
     {
+        return applyFor(applicantId, applicantId, idempotencyKey, request);
+    }
+
+    @Override
+    @Transactional
+    public ReservationApplyResult delegate(long actorId, String idempotencyKey, ReservationDelegateDto request)
+    {
+        if (!Objects.equals(objectPermissionService.currentUserId(), actorId)
+                || !SecurityUtils.hasPermi("lab:reservation:delegate"))
+        {
+            throw new LabBusinessException(LabErrorCode.ACCESS_DENIED, "无预约代办权限");
+        }
+        long applicantId = requirePositive(request.getApplicantId(), "申请人编号无效");
+        if (applicantId == actorId)
+        {
+            throw new LabBusinessException(LabErrorCode.VALIDATION_ERROR, "本人预约请使用普通申请入口");
+        }
+        userDirectory.assertActiveRole(applicantId, "lab_student");
+        // Authorize even idempotent replays; scope may have changed since submission.
+        objectPermissionService.assertDeviceManageable(requirePositive(request.getDeviceId(), "设备编号无效"));
+        return applyFor(applicantId, actorId, idempotencyKey, request);
+    }
+
+    private ReservationApplyResult applyFor(long applicantId, long actorId, String idempotencyKey,
+            ReservationApplyDto request)
+    {
         requirePositive(applicantId, "用户编号无效");
         String key = requireIdempotencyKey(idempotencyKey);
         ValidatedReservation validated = policy.validate(request);
-        String requestHash = requestHasher.hash(validated);
+        String requestHash = requestHasher.hash(validated, applicantId == actorId ? null : actorId);
         LocalDateTime now = LocalDateTime.now(clock);
 
         Optional<IdempotencySnapshot> cacheHint = safeCacheGet(applicantId, key);
@@ -139,6 +170,9 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
         }
 
         LabReservation reservation = newReservation(applicantId, key, requestHash, validated, now);
+        reservation.setSubmitterId(actorId);
+        reservation.setCreateBy(Long.toString(actorId));
+        reservation.setUpdateBy(Long.toString(actorId));
         try
         {
             reservationMapper.insert(reservation);
@@ -153,7 +187,8 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
             throw duplicateOperation();
         }
         historyService.append(OBJECT_TYPE, reservation.getId(), null,
-                ReservationStatus.PENDING.name(), applicantId, "提交预约申请");
+                ReservationStatus.PENDING.name(), actorId,
+                applicantId == actorId ? "提交预约申请" : "代学生提交预约申请");
         registerCachePut(applicantId, key, reservation.getId(), requestHash);
         return new ReservationApplyResult(ReservationVo.from(reservation), false);
     }
@@ -166,7 +201,8 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
         LockedReservation locked = lockReservationDeviceFirst(reservationId);
         objectPermissionService.assertDeviceManageable(locked.device().getId());
         requirePositive(approverId, "用户编号无效");
-        if (Objects.equals(locked.reservation().getApplicantId(), approverId))
+        if (Objects.equals(locked.reservation().getApplicantId(), approverId)
+                || Objects.equals(locked.reservation().getSubmitterId(), approverId))
         {
             throw new LabBusinessException(LabErrorCode.ACCESS_DENIED, "不能审批本人预约");
         }
@@ -203,9 +239,10 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
         LockedReservation locked = lockReservationDeviceFirst(reservationId);
         objectPermissionService.assertDeviceManageable(locked.device().getId());
         requirePositive(approverId, "用户编号无效");
-        if (Objects.equals(locked.reservation().getApplicantId(), approverId))
+        if (Objects.equals(locked.reservation().getApplicantId(), approverId)
+                || Objects.equals(locked.reservation().getSubmitterId(), approverId))
         {
-            throw new LabBusinessException(LabErrorCode.ACCESS_DENIED, "不能驳回本人预约");
+            throw new LabBusinessException(LabErrorCode.ACCESS_DENIED, "不能驳回本人申请或代办的预约");
         }
         stateMachine.assertTransition(locked.reservation().getStatus(), ReservationStatus.REJECTED);
         assertExpectedVersion(command == null ? null : command.getExpectedVersion(),

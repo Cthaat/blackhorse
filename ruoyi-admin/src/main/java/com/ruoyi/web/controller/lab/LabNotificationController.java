@@ -1,6 +1,5 @@
 package com.ruoyi.web.controller.lab;
 
-import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.lab.service.NotificationService;
@@ -18,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Validated
 @RestController
 @RequestMapping("/lab/notifications")
-public class LabNotificationController extends BaseController
+public class LabNotificationController extends LabBaseController
 {
     private final NotificationService notificationService;
 

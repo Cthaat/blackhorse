@@ -202,6 +202,7 @@
 </template>
 
 <script setup name="LabQualifications">
+import { loadAllOptions } from '@/utils/labOptions'
 import { parseTime } from '@/utils/ruoyi'
 import { listLaboratory } from '@/api/lab/laboratory'
 import { listLabUserOptions } from '@/api/lab/options'
@@ -358,7 +359,7 @@ async function loadOptions() {
       userLabels.value = labels
     })]
   if (canListLaboratory.value) {
-    tasks.push(listLaboratory({ pageNum: 1, pageSize: 200, sortBy: 'name', sortDirection: 'asc' }).then(response => {
+    tasks.push(loadAllOptions(listLaboratory, { sortBy: 'name', sortDirection: 'asc' }).then(response => {
       const labels = new Map()
       laboratoryOptions.value = (response.rows || []).map(item => {
         const normalized = { ...item, id: String(item.id) }

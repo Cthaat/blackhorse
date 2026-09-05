@@ -197,6 +197,7 @@
 </template>
 
 <script setup name="LabDevices">
+import { loadAllOptions } from '@/utils/labOptions'
 import { parseTime, selectDictLabel } from '@/utils/ruoyi'
 import { listLaboratory } from '@/api/lab/laboratory'
 import { listLabUserOptions } from '@/api/lab/options'
@@ -312,7 +313,7 @@ async function loadOptions() {
       }))
     })]
   if (canListLaboratory.value) {
-    tasks.push(listLaboratory({ pageNum: 1, pageSize: 200, sortBy: 'name', sortDirection: 'asc' })
+    tasks.push(loadAllOptions(listLaboratory, { sortBy: 'name', sortDirection: 'asc' })
       .then(response => {
         laboratoryOptions.value = (response.rows || []).map(item => ({
           ...item,

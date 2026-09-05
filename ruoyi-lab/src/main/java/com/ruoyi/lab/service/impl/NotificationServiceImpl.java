@@ -3,6 +3,7 @@ package com.ruoyi.lab.service.impl;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import com.ruoyi.lab.service.LabPage;
 import com.ruoyi.lab.domain.LabNotification;
 import com.ruoyi.lab.exception.LabBusinessException;
 import com.ruoyi.lab.exception.LabErrorCode;
@@ -29,8 +30,7 @@ public class NotificationServiceImpl implements NotificationService
     public List<NotificationVo> listMine(Long currentUserId, boolean unreadOnly)
     {
         long userId = requirePositive(currentUserId);
-        return notificationMapper.selectMine(userId, unreadOnly).stream()
-                .map(NotificationVo::from).toList();
+        return LabPage.query(() -> notificationMapper.selectMine(userId, unreadOnly), NotificationVo::from);
     }
 
     @Override

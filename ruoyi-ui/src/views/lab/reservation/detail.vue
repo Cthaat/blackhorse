@@ -30,6 +30,7 @@
         <el-descriptions :column="2" border class="mt16">
           <el-descriptions-item label="设备">{{ optionLabel(deviceOptions, detail.deviceId, '设备') }}</el-descriptions-item>
           <el-descriptions-item label="申请人">{{ optionLabel(applicantOptions, detail.applicantId, '用户') }}</el-descriptions-item>
+          <el-descriptions-item label="提交方式" :span="2">{{ detail.submitterId && detail.submitterId !== detail.applicantId ? `管理员代办（提交人 ${detail.submitterId}）` : '本人申请' }}</el-descriptions-item>
           <el-descriptions-item label="开始时间">{{ formatDateTime(detail.startTime) }}</el-descriptions-item>
           <el-descriptions-item label="结束时间">{{ formatDateTime(detail.endTime) }}</el-descriptions-item>
           <el-descriptions-item label="预约用途" :span="2">{{ detail.purpose || '-' }}</el-descriptions-item>

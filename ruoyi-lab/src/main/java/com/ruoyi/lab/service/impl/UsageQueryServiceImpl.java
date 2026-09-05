@@ -1,6 +1,7 @@
 package com.ruoyi.lab.service.impl;
 
 import java.util.List;
+import com.ruoyi.lab.service.LabPage;
 import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.lab.dto.UsageQueryDto;
 import com.ruoyi.lab.exception.LabBusinessException;
@@ -34,7 +35,7 @@ public class UsageQueryServiceImpl implements UsageQueryService
         validateRange(filters);
         boolean studentOnly = studentOnly();
         LabDataScope scope = studentOnly ? null : dataScopeService.resolveCurrentScope();
-        return usageMapper.selectScopedList(filters, userId, studentOnly, scope);
+        return LabPage.query(() -> usageMapper.selectScopedList(filters, userId, studentOnly, scope));
     }
 
     @Override

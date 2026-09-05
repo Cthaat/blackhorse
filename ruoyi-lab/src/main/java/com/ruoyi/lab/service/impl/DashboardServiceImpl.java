@@ -7,6 +7,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
+import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.lab.config.LabTimeConfig;
 import com.ruoyi.lab.dto.DashboardQueryDto;
 import com.ruoyi.lab.exception.LabBusinessException;
@@ -54,25 +55,32 @@ public class DashboardServiceImpl implements DashboardService
         Window window = resolveWindow(query);
         LocalDateTime windowStart = window.start().toLocalDateTime();
         LocalDateTime windowEnd = window.end().toLocalDateTime();
-        List<LabMetricVo> deviceStates = safe(dashboardMapper.countDeviceStates(scope));
-        List<LabMetricVo> reservationStates = safe(dashboardMapper.countReservationStates(
-                currentUserId, scope, windowStart, windowEnd));
-        List<LabMetricVo> repairStates = safe(dashboardMapper.countRepairStates(
-                currentUserId, scope, windowStart, windowEnd));
-        List<LabMetricVo> hazardStates = safe(dashboardMapper.countHazardStates(
-                currentUserId, scope, windowStart, windowEnd));
+        boolean devices = SecurityUtils.hasPermi("lab:device:list");
+        boolean reservations = SecurityUtils.hasPermi("lab:reservation:list") || SecurityUtils.hasPermi("lab:reservation:mine");
+        boolean usage = SecurityUtils.hasPermi("lab:usage:list");
+        boolean repairs = SecurityUtils.hasPermi("lab:repair:list");
+        boolean hazards = SecurityUtils.hasPermi("lab:hazard:list");
+        boolean inspections = SecurityUtils.hasPermi("lab:inspection:task:list");
+        LabDataScope reservationScope = SecurityUtils.hasPermi("lab:reservation:list") ? scope : null;
+        List<LabMetricVo> deviceStates = devices ? safe(dashboardMapper.countDeviceStates(scope, LocalDateTime.now(clock))) : List.of();
+        List<LabMetricVo> reservationStates = reservations ? safe(dashboardMapper.countReservationStates(
+                currentUserId, reservationScope, windowStart, windowEnd)) : List.of();
+        List<LabMetricVo> repairStates = repairs ? safe(dashboardMapper.countRepairStates(
+                currentUserId, scope, windowStart, windowEnd)) : List.of();
+        List<LabMetricVo> hazardStates = hazards ? safe(dashboardMapper.countHazardStates(
+                currentUserId, scope, windowStart, windowEnd)) : List.of();
         long totalHazards = total(hazardStates);
         long closedHazards = value(hazardStates, "CLOSED");
         return new DashboardSnapshotVo(
-                dashboardMapper.countPendingReservations(currentUserId, scope),
-                dashboardMapper.countOpenUsage(currentUserId, scope),
-                dashboardMapper.countOpenRepairs(currentUserId, scope),
-                dashboardMapper.countPendingInspections(currentUserId, scope),
-                dashboardMapper.countOpenHazards(currentUserId, scope),
-                dashboardMapper.countUnreadNotifications(currentUserId),
+                reservations ? dashboardMapper.countPendingReservations(currentUserId, reservationScope) : 0,
+                usage ? dashboardMapper.countOpenUsage(currentUserId, scope) : 0,
+                repairs ? dashboardMapper.countOpenRepairs(currentUserId, scope) : 0,
+                inspections ? dashboardMapper.countPendingInspections(currentUserId, scope) : 0,
+                hazards ? dashboardMapper.countOpenHazards(currentUserId, scope) : 0,
+                SecurityUtils.hasPermi("lab:notification:list") ? dashboardMapper.countUnreadNotifications(currentUserId) : 0,
                 window.start(), window.end(), deviceStates, total(deviceStates),
                 reservationStates, total(reservationStates),
-                dashboardMapper.sumUsageMinutes(currentUserId, scope, windowStart, windowEnd),
+                usage ? dashboardMapper.sumUsageMinutes(currentUserId, scope, windowStart, windowEnd) : 0,
                 repairStates, total(repairStates), hazardStates, totalHazards, closedHazards,
                 closureRate(closedHazards, totalHazards));
     }

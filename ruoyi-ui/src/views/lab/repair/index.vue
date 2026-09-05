@@ -139,6 +139,7 @@
 </template>
 
 <script setup name="LabRepair">
+import { loadAllOptions } from '@/utils/labOptions'
 import RepairDetail from './detail.vue'
 import {
   acceptRepair,
@@ -310,7 +311,7 @@ async function submitAssign() {
 async function loadDeviceOptions(errorTarget) {
   deviceLoading.value = true
   try {
-    const response = await listRepairDevices({ pageNum: 1, pageSize: 500, sortBy: 'assetNo', sortDirection: 'asc' })
+    const response = await loadAllOptions(listRepairDevices, { sortBy: 'assetNo', sortDirection: 'asc' })
     devices.value = Array.isArray(response.rows) ? response.rows : []
   } catch (error) {
     devices.value = []

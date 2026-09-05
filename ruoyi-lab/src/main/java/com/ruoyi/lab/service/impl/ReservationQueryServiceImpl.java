@@ -3,6 +3,7 @@ package com.ruoyi.lab.service.impl;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import com.ruoyi.lab.service.LabPage;
 import java.util.Objects;
 import com.ruoyi.lab.domain.LabReservation;
 import com.ruoyi.lab.dto.ReservationQueryDto;
@@ -53,11 +54,10 @@ public class ReservationQueryServiceImpl implements ReservationQueryService
             throw validation("预约查询时间范围无效");
         }
         LabDataScope scope = managementView ? dataScopeService.resolveCurrentScope() : null;
-        return reservationMapper.selectAccessible(scope, userId, managementView,
+        return LabPage.query(() -> reservationMapper.selectAccessible(scope, userId, managementView,
                 filters.getApplicantId(),
                 filters.getDeviceId(), filters.getStatus() == null ? null : filters.getStatus().name(),
-                trimToNull(filters.getReservationNo()), from, to, sort)
-                .stream().map(ReservationVo::from).toList();
+                trimToNull(filters.getReservationNo()), from, to, sort), ReservationVo::from);
     }
 
     @Override

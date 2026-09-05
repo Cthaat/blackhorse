@@ -1,7 +1,6 @@
 package com.ruoyi.web.controller.lab;
 
 import com.ruoyi.common.annotation.Log;
-import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
@@ -17,13 +16,13 @@ import org.springframework.web.bind.annotation.*;
 @Validated
 @RestController
 @RequestMapping("/lab/inspection-tasks")
-public class LabInspectionTaskController extends BaseController
+public class LabInspectionTaskController extends LabBaseController
 {
     private final InspectionTaskService service;
     public LabInspectionTaskController(InspectionTaskService service) { this.service = service; }
 
     @PreAuthorize("@ss.hasPermi('lab:inspection:task:list')")
-    @GetMapping public TableDataInfo list(InspectionTaskStatus status, Long assigneeId)
+    @GetMapping public TableDataInfo list(InspectionTaskStatus status, @Positive Long assigneeId)
     { startPage(); try { return getDataTable(service.list(status, assigneeId)); } finally { clearPage(); } }
 
     @PreAuthorize("@ss.hasPermi('lab:inspection:task:list')")

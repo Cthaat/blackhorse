@@ -1,7 +1,6 @@
 package com.ruoyi.web.controller.lab;
 
 import com.ruoyi.common.annotation.Log;
-import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
@@ -23,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 @Validated
 @RestController
 @RequestMapping("/lab/hazards")
-public class LabHazardController extends BaseController
+public class LabHazardController extends LabBaseController
 {
     private final HazardService hazardService;
     private final RectificationService rectificationService;
@@ -31,7 +30,7 @@ public class LabHazardController extends BaseController
     { this.hazardService = hazardService; this.rectificationService = rectificationService; }
 
     @PreAuthorize("@ss.hasPermi('lab:hazard:list')")
-    @GetMapping public TableDataInfo list(HazardStatus status, HazardSeverity severity, Long ownerId)
+    @GetMapping public TableDataInfo list(HazardStatus status, HazardSeverity severity, @Positive Long ownerId)
     { startPage(); try { return getDataTable(hazardService.list(status, severity, ownerId)); } finally { clearPage(); } }
 
     @PreAuthorize("@ss.hasPermi('lab:hazard:list')")
@@ -45,8 +44,7 @@ public class LabHazardController extends BaseController
     @PreAuthorize("@ss.hasPermi('lab:hazard:add')")
     @Log(title="隐患登记", businessType=BusinessType.INSERT)
     @PostMapping public ResponseEntity<AjaxResult> create(@Valid @RequestBody CreateHazardCommand command)
-    { return ResponseEntity.status(HttpStatus.CREATED).body(success(
-            String.valueOf(hazardService.create(command, getUserId(), getUsername())))); }
+    { return ResponseEntity.status(HttpStatus.CREATED).body(success().put("data", String.valueOf(hazardService.create(command, getUserId(), getUsername())))); }
 
     @PreAuthorize("@ss.hasPermi('lab:hazard:rectify')")
     @PostMapping("/{id}/start-rectification") public AjaxResult start(@PathVariable @Positive Long id)
@@ -55,7 +53,7 @@ public class LabHazardController extends BaseController
     @PreAuthorize("@ss.hasPermi('lab:hazard:rectify')")
     @PostMapping("/{id}/rectifications") public ResponseEntity<AjaxResult> submit(
             @PathVariable @Positive Long id, @Valid @RequestBody SubmitRectificationCommand command)
-    { return ResponseEntity.status(HttpStatus.CREATED).body(success(String.valueOf(
+    { return ResponseEntity.status(HttpStatus.CREATED).body(success().put("data", String.valueOf(
             rectificationService.submit(id, command, getUserId(), getUsername())))); }
 
     @PreAuthorize("@ss.hasPermi('lab:hazard:review')")

@@ -5,6 +5,7 @@ import com.ruoyi.lab.domain.HazardTargetType;
 import com.ruoyi.lab.domain.InspectionResult;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 public record RecordInspectionItemCommand(
@@ -13,6 +14,6 @@ public record RecordInspectionItemCommand(
         HazardSeverity severity,
         HazardTargetType targetType,
         @Positive Long targetId,
-        @NotNull Integer version)
+        @NotNull @PositiveOrZero Integer version)
 {
 }

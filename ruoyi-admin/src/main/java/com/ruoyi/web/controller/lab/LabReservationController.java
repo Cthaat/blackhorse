@@ -2,12 +2,13 @@ package com.ruoyi.web.controller.lab;
 
 import java.util.List;
 import com.ruoyi.common.annotation.Log;
-import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.lab.dto.ReservationApplyDto;
+import com.ruoyi.lab.dto.ReservationDelegateDto;
+import io.swagger.v3.oas.annotations.Operation;
 import com.ruoyi.lab.dto.ReservationCancelDto;
 import com.ruoyi.lab.dto.ReservationDecisionDto;
 import com.ruoyi.lab.dto.ReservationQueryDto;
@@ -34,7 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Validated
 @RestController
 @RequestMapping("/lab/reservations")
-public class LabReservationController extends BaseController
+public class LabReservationController extends LabBaseController
 {
     private final ReservationCommandService commandService;
     private final ReservationQueryService queryService;
@@ -56,6 +57,19 @@ public class LabReservationController extends BaseController
         ReservationApplyResult result = commandService.apply(getUserId(), idempotencyKey, request);
         HttpStatus status = result.replayed() ? HttpStatus.OK : HttpStatus.CREATED;
         return ResponseEntity.status(status).body(AjaxResult.success(result.reservation()));
+    }
+
+    @Operation(summary = "代学生提交预约", description = "需独立代办权限及设备管理范围，校验学生资格。代办人不能审批此预约。相同幂等请求返回200，首次创建返回201。")
+    @PreAuthorize("@ss.hasPermi('lab:reservation:delegate')")
+    @Log(title = "预约代办", businessType = BusinessType.INSERT)
+    @PostMapping("/delegate")
+    public ResponseEntity<AjaxResult> delegate(
+            @RequestHeader("X-Idempotency-Key") @NotBlank String idempotencyKey,
+            @Valid @RequestBody ReservationDelegateDto request)
+    {
+        ReservationApplyResult result = commandService.delegate(getUserId(), idempotencyKey, request);
+        return ResponseEntity.status(result.replayed() ? HttpStatus.OK : HttpStatus.CREATED)
+                .body(AjaxResult.success(result.reservation()));
     }
 
     @PreAuthorize("@ss.hasAnyPermi('lab:reservation:list,lab:reservation:mine')")

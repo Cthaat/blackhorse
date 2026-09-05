@@ -9,6 +9,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="reservationNo" column="reservation_no" />
         <result property="deviceId" column="device_id" />
         <result property="applicantId" column="applicant_id" />
+        <result property="submitterId" column="submitter_id" />
         <result property="startTime" column="start_time" />
         <result property="endTime" column="end_time" />
         <result property="purpose" column="purpose" />
@@ -31,7 +32,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="ReservationColumns">
-        r.id, r.reservation_no, r.device_id, r.applicant_id, r.start_time, r.end_time,
+        r.id, r.reservation_no, r.device_id, r.applicant_id, r.submitter_id, r.start_time, r.end_time,
         r.purpose, r.remark, r.status, r.approval_by, r.approval_time,
         r.approval_reason, r.cancel_time, r.cancel_reason, r.idempotency_key,
         r.request_hash, r.idempotency_expires_at, r.version, r.create_by,
@@ -141,7 +142,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <if test="from != null">and r.end_time &gt; #{from}</if>
         <if test="to != null">and r.start_time &lt; #{to}</if>
         <choose>
-            <when test="sort != null">order by ${sort.column} ${sort.direction}</when>
+            <when test="sort != null">order by ${sort.column} ${sort.direction}, r.id asc</when>
             <otherwise>order by r.create_time desc</otherwise>
         </choose>
     </select>

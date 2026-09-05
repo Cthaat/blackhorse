@@ -2,7 +2,6 @@ package com.ruoyi.web.controller.lab;
 
 import java.util.List;
 import com.ruoyi.common.annotation.Log;
-import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
@@ -30,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Validated
 @RestController
 @RequestMapping("/lab/qualifications")
-public class LabQualificationController extends BaseController
+public class LabQualificationController extends LabBaseController
 {
     private final QualificationService qualificationService;
 

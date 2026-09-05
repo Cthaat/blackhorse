@@ -121,6 +121,7 @@
 </template>
 
 <script setup>
+import { loadAllOptions } from '@/utils/labOptions'
 import { getCurrentInstance, reactive, ref } from 'vue'
 import {
   createInspectionPlan,
@@ -165,7 +166,7 @@ function userLabel(id) {
 async function loadOptions() {
   optionsError.value = ''
   const results = await Promise.allSettled([
-    listLaboratory({ pageNum: 1, pageSize: 200, sortBy: 'name', sortDirection: 'asc' }).then(response => {
+    loadAllOptions(listLaboratory, { sortBy: 'name', sortDirection: 'asc' }).then(response => {
       laboratoryOptions.value = (response.rows || []).map(item => ({
         id: String(item.id),
         label: `${item.labCode} · ${item.name}`

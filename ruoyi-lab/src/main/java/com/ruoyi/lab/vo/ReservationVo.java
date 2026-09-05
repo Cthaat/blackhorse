@@ -13,7 +13,7 @@ public record ReservationVo(@LabBusinessId Long id, String reservationNo,
         String purpose, String remark, ReservationStatus status,
         @LabBusinessId Long approvalBy, @LabBusinessTime LocalDateTime approvalTime,
         String approvalReason, @LabBusinessTime LocalDateTime cancelTime, String cancelReason,
-        Integer version, @LabBusinessTime LocalDateTime createTime)
+        Integer version, @LabBusinessTime LocalDateTime createTime, @LabBusinessId Long submitterId)
 {
     public static ReservationVo from(LabReservation reservation)
     {
@@ -22,6 +22,7 @@ public record ReservationVo(@LabBusinessId Long id, String reservationNo,
                 reservation.getEndTime(), reservation.getPurpose(), reservation.getRemark(),
                 reservation.getStatus(), reservation.getApprovalBy(), reservation.getApprovalTime(),
                 reservation.getApprovalReason(), reservation.getCancelTime(),
-                reservation.getCancelReason(), reservation.getVersion(), reservation.getCreateTime());
+                reservation.getCancelReason(), reservation.getVersion(), reservation.getCreateTime(),
+                reservation.getSubmitterId());
     }
 }

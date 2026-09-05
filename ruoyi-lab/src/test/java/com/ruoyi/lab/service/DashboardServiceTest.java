@@ -21,11 +21,27 @@ import com.ruoyi.lab.service.impl.DashboardServiceImpl;
 import com.ruoyi.lab.vo.DashboardSnapshotVo;
 import com.ruoyi.lab.vo.LabMetricVo;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+import com.ruoyi.common.core.domain.model.LoginUser;
+import com.ruoyi.common.core.domain.entity.SysUser;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 
 class DashboardServiceTest
 {
     private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-09-03T04:00:00Z"),
             ZoneId.of("Asia/Shanghai"));
+
+    @BeforeEach
+    void login()
+    {
+        LoginUser user = new LoginUser(7L, 1L, new SysUser(), Set.of("*:*:*"));
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(user, null));
+    }
+
+    @AfterEach
+    void logout() { SecurityContextHolder.clearContext(); }
 
     @Test
     void returnsRoleTodosAndScopedWindowedStatistics()
@@ -44,7 +60,7 @@ class DashboardServiceTest
         when(mapper.countPendingInspections(7L, scope)).thenReturn(5L);
         when(mapper.countOpenHazards(7L, scope)).thenReturn(6L);
         when(mapper.countUnreadNotifications(7L)).thenReturn(7L);
-        when(mapper.countDeviceStates(scope)).thenReturn(List.of(
+        when(mapper.countDeviceStates(scope, LocalDateTime.now(CLOCK))).thenReturn(List.of(
                 new LabMetricVo("AVAILABLE", 8L), new LabMetricVo("FAULT", 1L)));
         when(mapper.countReservationStates(7L, scope, localStart, localEnd)).thenReturn(List.of(
                 new LabMetricVo("COMPLETED", 9L), new LabMetricVo("CANCELLED", 2L)));

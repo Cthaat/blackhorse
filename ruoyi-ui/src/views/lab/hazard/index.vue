@@ -1,6 +1,9 @@
 <template>
   <div class="app-container">
     <el-alert v-if="optionsError" :title="optionsError" type="error" show-icon :closable="false" class="mb12" />
+    <el-alert v-if="listError" :title="listError" type="error" show-icon :closable="false" class="mb12">
+      <template #default><el-button link type="primary" @click="loadHazards">重新加载</el-button></template>
+    </el-alert>
     <el-form v-show="showSearch" :model="query" inline>
       <el-form-item label="状态">
         <el-select v-model="query.status" clearable placeholder="全部" style="width: 170px">
@@ -52,14 +55,17 @@
           <el-col :span="24"><el-form-item label="关联隐患"><el-select v-model="form.relatedHazardId" clearable filterable placeholder="复发隐患可关联已销号记录" style="width: 100%"><el-option v-for="item in closedHazardOptions" :key="item.id" :label="item.label" :value="item.id" /></el-select></el-form-item></el-col>
         </el-row>
       </el-form>
-      <template #footer><el-button @click="dialogOpen = false">取消</el-button><el-button type="primary" :loading="submitting" @click="submitCreate">提交</el-button></template>
+      <template #footer><el-button @click="dialogOpen = false">取消</el-button><el-button type="primary" :loading="submitting" :disabled="optionsLoading || !!optionsError" @click="submitCreate">提交</el-button></template>
     </el-dialog>
   </div>
 </template>
 
 <script setup>
+import { loadAllOptions } from '@/utils/labOptions'
 import { getCurrentInstance, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { checkPermi, checkRole } from '@/utils/permission'
+import useUserStore from '@/store/modules/user'
 import { createHazard, listHazards } from '@/api/lab/hazard'
 import { listDevice } from '@/api/lab/device'
 import { listLaboratory } from '@/api/lab/laboratory'
@@ -79,6 +85,9 @@ const deviceOptions = ref([])
 const ownerOptions = ref([])
 const closedHazardOptions = ref([])
 const optionsError = ref('')
+const optionsLoading = ref(false)
+const listError = ref('')
+const userStore = useUserStore()
 const query = reactive({ pageNum: 1, pageSize: 10, status: undefined, severity: undefined, ownerId: undefined })
 const form = reactive(emptyForm())
 const statusOptions = [
@@ -95,48 +104,77 @@ const rules = {
   targetId: [{ required: true, message: '请选择隐患对象', trigger: 'change' }],
   severity: [{ required: true, message: '请选择严重级别', trigger: 'change' }],
   ownerId: [{ required: true, message: '请选择责任人', trigger: 'change' }],
-  deadline: [{ required: true, message: '请选择整改期限', trigger: 'change' }],
-  requirements: [{ required: true, message: '请输入整改要求', trigger: 'blur' }]
+  deadline: [{ required: true, message: '请选择整改期限', trigger: 'change' }, {
+    validator: (_rule, value, callback) => callback(new Date(value).getTime() > Date.now() ? undefined : new Error('整改期限必须是未来时间')),
+    trigger: 'change'
+  }],
+  requirements: [{ required: true, whitespace: true, message: '请输入整改要求', trigger: 'blur' }]
 }
 function emptyForm() { return { targetType: 'DEVICE', targetId: '', severity: 'MEDIUM', ownerId: '', deadline: '', requirements: '', relatedHazardId: undefined } }
 const targetOptions = computed(() => form.targetType === 'DEVICE' ? deviceOptions.value : laboratoryOptions.value)
 function ownerLabel(id) { return ownerOptions.value.find(item => item.id === String(id))?.label || `用户 ${id}` }
 async function loadOptions() {
+  optionsLoading.value = true
   optionsError.value = ''
-  const results = await Promise.allSettled([
-    listLaboratory({ pageNum: 1, pageSize: 200, sortBy: 'name', sortDirection: 'asc' }).then(response => {
+  laboratoryOptions.value = []
+  deviceOptions.value = []
+  closedHazardOptions.value = []
+  ownerOptions.value = [{ id: String(userStore.id), label: userStore.nickName || userStore.name }]
+  const tasks = []
+  if (checkPermi(['lab:laboratory:list'])) {
+    tasks.push(loadAllOptions(listLaboratory, { sortBy: 'name', sortDirection: 'asc' }).then(response => {
       laboratoryOptions.value = (response.rows || []).map(item => ({ id: String(item.id), label: `${item.labCode} · ${item.name}` }))
-    }),
-    listDevice({ pageNum: 1, pageSize: 500, sortBy: 'assetNo', sortDirection: 'asc' }).then(response => {
+    }))
+  }
+  if (checkPermi(['lab:device:list'])) {
+    tasks.push(loadAllOptions(listDevice, { sortBy: 'assetNo', sortDirection: 'asc' }).then(response => {
       deviceOptions.value = (response.rows || []).map(item => ({ id: String(item.id), label: `${item.assetNo} · ${item.name}` }))
-    }),
-    Promise.all(ownerRoleKeys.map(roleKey => listLabUserOptions({ roleKey }))).then(responses => {
+    }))
+  }
+  if (checkRole(['lab_manager', 'lab_safety_officer', 'lab_system_admin'])) {
+    tasks.push(Promise.all(ownerRoleKeys.map(roleKey => listLabUserOptions({ roleKey }))).then(responses => {
       const usersById = new Map()
       responses.flatMap(response => response.data || []).forEach(item => usersById.set(String(item.id), item))
       ownerOptions.value = Array.from(usersById.values()).map(item => ({
-        id: String(item.id),
-        label: `${item.displayName || item.userName}（${item.userName}）`
+        id: String(item.id), label: `${item.displayName || item.userName}（${item.userName}）`
       }))
-    }),
-    listHazards({ pageNum: 1, pageSize: 100, status: 'CLOSED' }).then(response => {
+    }))
+  }
+  if (checkPermi(['lab:hazard:add'])) {
+    tasks.push(loadAllOptions(listHazards, { status: 'CLOSED' }).then(response => {
       closedHazardOptions.value = (response.rows || []).map(item => ({ id: String(item.id), label: `${item.hazardNo} · ${targetText(item)}` }))
-    })
-  ])
+    }))
+  }
+  const results = await Promise.allSettled(tasks)
   if (results.some(item => item.status === 'rejected')) optionsError.value = '部分业务选项加载失败，请刷新页面重试'
+  optionsLoading.value = false
 }
-async function loadHazards() { loading.value = true; try { const response = await listHazards(query); hazards.value = response.rows || []; total.value = response.total || 0 } finally { loading.value = false } }
+async function loadHazards() {
+  loading.value = true
+  listError.value = ''
+  try {
+    const response = await listHazards(query)
+    hazards.value = response.rows || []
+    total.value = response.total || 0
+  } catch (error) {
+    hazards.value = []
+    total.value = 0
+    listError.value = error?.message || '隐患列表加载失败'
+  } finally { loading.value = false }
+}
 function handleQuery() { query.pageNum = 1; void loadHazards() }
 function resetQuery() { Object.assign(query, { pageNum: 1, status: undefined, severity: undefined, ownerId: undefined }); void loadHazards() }
-function openCreate() { Object.assign(form, emptyForm()); dialogOpen.value = true }
+function openCreate() { Object.assign(form, emptyForm()); dialogOpen.value = true; void loadOptions() }
 async function submitCreate() {
-  await hazardFormRef.value.validate()
+  if (!await hazardFormRef.value.validate().catch(() => false)) return
   submitting.value = true
   try {
     await createHazard({ ...form, relatedHazardId: form.relatedHazardId || null })
     proxy.$modal.msgSuccess('隐患登记成功')
     dialogOpen.value = false
     await loadHazards()
-  } finally { submitting.value = false }
+  } catch (error) { proxy.$modal.msgError(error?.message || '隐患登记失败') }
+  finally { submitting.value = false }
 }
 function openDetail(row) { router.push(`/lab/hazard/detail/${row.id}`) }
 function targetText(row) {

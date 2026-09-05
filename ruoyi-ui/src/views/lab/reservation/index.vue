@@ -47,10 +47,12 @@
 
     <el-row :gutter="10" class="mb8">
       <el-col v-if="!approvalMode" :span="1.5">
-        <el-button type="primary" plain icon="Plus" v-hasPermi="['lab:reservation:apply']" @click="applyOpen = true">
+        <el-button type="primary" plain icon="Plus" v-hasPermi="['lab:reservation:apply']" @click="delegated = false; applyOpen = true">
           申请预约
         </el-button>
       </el-col>
+      <el-button type="primary" plain icon="Plus" v-hasPermi="['lab:reservation:delegate']"
+        @click="delegated = true; applyOpen = true">代学生预约</el-button>
       <right-toolbar :show-search="false" @queryTable="getList" />
     </el-row>
 
@@ -63,6 +65,10 @@
       class="mb16"
     >
       <template #default><el-button link type="primary" @click="getList">重新加载</el-button></template>
+    </el-alert>
+
+    <el-alert v-if="optionsError" :title="optionsError" type="error" show-icon :closable="false" class="mb16">
+      <template #default><el-button link type="primary" @click="loadOptions">重新加载选项</el-button></template>
     </el-alert>
 
     <el-table v-loading="loading" :data="rows" row-key="id">
@@ -93,7 +99,7 @@
             v-hasPermi="['lab:reservation:cancel']"
             @click="handleCancel(scope.row)"
           >取消</el-button>
-          <template v-if="approvalMode && scope.row.status === 'PENDING'">
+          <template v-if="approvalMode && scope.row.status === 'PENDING' && canDecide(scope.row)">
             <el-button link type="success" icon="Select" :loading="actionId === String(scope.row.id)" v-hasPermi="['lab:reservation:approve']" @click="handleDecision(scope.row, true)">批准</el-button>
             <el-button link type="danger" icon="CloseBold" :loading="actionId === String(scope.row.id)" v-hasPermi="['lab:reservation:reject']" @click="handleDecision(scope.row, false)">驳回</el-button>
           </template>
@@ -112,7 +118,7 @@
       @pagination="getList"
     />
 
-    <ReservationApply v-model="applyOpen" @saved="getList" />
+    <ReservationApply :delegated="delegated" v-model="applyOpen" @saved="getList" />
     <ReservationDetail
       v-model="detailOpen"
       :reservation-id="detailId"
@@ -123,6 +129,8 @@
 </template>
 
 <script setup name="LabReservation">
+import { loadAllOptions } from '@/utils/labOptions'
+import useUserStore from '@/store/modules/user'
 import ReservationApply from './apply.vue'
 import ReservationDetail from './detail.vue'
 import {
@@ -139,16 +147,19 @@ const { proxy } = getCurrentInstance()
 const queryRef = ref()
 const loading = ref(false)
 const errorMessage = ref('')
+const optionsError = ref('')
 const rows = ref([])
 const total = ref(0)
 const applyOpen = ref(false)
+const delegated = ref(false)
+const userStore = useUserStore()
 const detailOpen = ref(false)
 const detailId = ref('')
 const actionId = ref('')
 const deviceOptions = ref([])
 const applicantOptions = ref([])
 
-const approvalMode = computed(() => route.query.mode === 'approval')
+const approvalMode = computed(() => route.query.mode === 'approval' || route.path === '/lab/reservations/approval')
 const statusOptions = [
   { value: 'PENDING', label: '待审批' },
   { value: 'APPROVED', label: '已批准' },
@@ -200,7 +211,10 @@ function applicantLabel(id) {
 }
 
 async function loadOptions() {
-  const tasks = [listReservationDevices({ pageNum: 1, pageSize: 500, sortBy: 'assetNo', sortDirection: 'asc' }).then(response => {
+  optionsError.value = ''
+  deviceOptions.value = []
+  applicantOptions.value = []
+  const tasks = [loadAllOptions(listReservationDevices, { sortBy: 'assetNo', sortDirection: 'asc' }).then(response => {
     deviceOptions.value = (response.rows || []).map(item => ({ id: String(item.id), label: `${item.assetNo} · ${item.name}` }))
   })]
   if (approvalMode.value) {
@@ -210,7 +224,8 @@ async function loadOptions() {
   } else {
     applicantOptions.value = []
   }
-  await Promise.allSettled(tasks)
+  const results = await Promise.allSettled(tasks)
+  if (results.some(item => item.status === 'rejected')) optionsError.value = '部分业务选项加载失败，请重试'
 }
 
 async function getList() {
@@ -239,6 +254,11 @@ function resetQuery() {
   queryParams.dateRange = []
   queryParams.status = approvalMode.value ? 'PENDING' : ''
   handleQuery()
+}
+
+function canDecide(row) {
+  return String(row.applicantId) !== String(userStore.id)
+    && String(row.submitterId) !== String(userStore.id)
 }
 
 function openDetail(row) {

@@ -1,6 +1,7 @@
 package com.ruoyi.lab.service.impl;
 
 import java.util.List;
+import com.ruoyi.lab.service.LabPage;
 import java.util.Objects;
 import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.lab.domain.LabLaboratory;
@@ -66,8 +67,7 @@ public class LaboratoryServiceImpl implements LaboratoryService
         }
         LabSortWhitelist.SortClause sort = sortWhitelist.resolve("laboratory",
                 defaultValue(sortBy, "createTime"), defaultValue(sortDirection, "desc"));
-        return laboratoryMapper.selectListByScope(scope, status, trimToNull(keyword), sort)
-                .stream().map(LaboratoryVo::from).toList();
+        return LabPage.query(() -> laboratoryMapper.selectListByScope(scope, status, trimToNull(keyword), sort), LaboratoryVo::from);
     }
 
     @Override

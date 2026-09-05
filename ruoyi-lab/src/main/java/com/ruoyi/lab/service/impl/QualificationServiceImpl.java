@@ -3,6 +3,7 @@ package com.ruoyi.lab.service.impl;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import com.ruoyi.lab.service.LabPage;
 import java.util.Objects;
 import com.ruoyi.lab.domain.LabQualification;
 import com.ruoyi.lab.domain.QualificationComputedStatus;
@@ -72,8 +73,7 @@ public class QualificationServiceImpl implements QualificationService
             return List.of();
         }
         LabSortWhitelist.SortClause sort = qualificationSort(sortBy, sortDirection);
-        return qualificationMapper.selectListByScope(scope, userId, scopeType, sort)
-                .stream().map(this::toVo).toList();
+        return LabPage.query(() -> qualificationMapper.selectListByScope(scope, userId, scopeType, sort), this::toVo);
     }
 
     @Override
@@ -216,8 +216,7 @@ public class QualificationServiceImpl implements QualificationService
     public List<QualificationVo> listMine(String sortBy, String sortDirection)
     {
         long userId = requirePositive(objectPermissionService.currentUserId(), "用户编号无效");
-        return qualificationMapper.selectMine(userId, qualificationSort(sortBy, sortDirection))
-                .stream().map(this::toVo).toList();
+        return LabPage.query(() -> qualificationMapper.selectMine(userId, qualificationSort(sortBy, sortDirection)), this::toVo);
     }
 
     @Override

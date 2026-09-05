@@ -45,7 +45,7 @@ class LabReservationControllerApplyStatusTest
         ReservationCommandService commandService = mock(ReservationCommandService.class);
         ReservationApplyDto request = new ReservationApplyDto();
         ReservationVo reservation = new ReservationVo(11L, "LR11", 3L, USER_ID,
-                null, null, "teaching", null, null, null, null, null, null, null, 0, null);
+                null, null, "teaching", null, null, null, null, null, null, null, 0, null, USER_ID);
         when(commandService.apply(USER_ID, "request-key", request))
                 .thenReturn(new ReservationApplyResult(reservation, replayed));
         LabReservationController controller = new LabReservationController(commandService,

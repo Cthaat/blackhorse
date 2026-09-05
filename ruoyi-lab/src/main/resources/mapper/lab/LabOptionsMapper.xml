@@ -34,7 +34,6 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
               or d.dept_name like concat('%', #{keyword}, '%'))
         </if>
         order by u.user_id
-        limit 100
     </select>
 
     <select id="selectActiveDepartmentOptions" resultType="com.ruoyi.lab.vo.LabDepartmentOptionVo">
@@ -53,7 +52,6 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             </choose>
         </if>
         order by d.order_num, d.dept_id
-        limit 100
     </select>
 
     <select id="countActiveUserRole" resultType="int">

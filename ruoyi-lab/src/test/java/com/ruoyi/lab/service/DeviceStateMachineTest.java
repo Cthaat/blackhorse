@@ -14,9 +14,9 @@ class DeviceStateMachineTest
     private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
 
     @Test
-    void allowsOnlyM2CandidateTransitions()
+    void genericStatusChangesCannotBypassRepairReporting()
     {
-        assertTrue(DeviceStatus.AVAILABLE.canMoveTo(DeviceStatus.FAULT));
+        assertFalse(DeviceStatus.AVAILABLE.canMoveTo(DeviceStatus.FAULT));
         assertTrue(DeviceStatus.AVAILABLE.canMoveTo(DeviceStatus.DISABLED));
         assertTrue(DeviceStatus.FAULT.canMoveTo(DeviceStatus.DISABLED));
         assertTrue(DeviceStatus.DISABLED.canMoveTo(DeviceStatus.AVAILABLE));

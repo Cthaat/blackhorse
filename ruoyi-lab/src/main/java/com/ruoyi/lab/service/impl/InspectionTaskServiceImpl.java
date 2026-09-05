@@ -3,6 +3,7 @@ package com.ruoyi.lab.service.impl;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import com.ruoyi.lab.service.LabPage;
 import java.util.Objects;
 import com.ruoyi.lab.domain.InspectionResult;
 import com.ruoyi.lab.domain.InspectionTaskStatus;
@@ -55,7 +56,8 @@ public class InspectionTaskServiceImpl implements InspectionTaskService
     @Override
     public List<LabInspectionTask> list(InspectionTaskStatus status, Long assigneeId)
     {
-        return taskMapper.selectListByScope(dataScopeService.resolveCurrentScope(), assigneeId, status);
+        var scope = dataScopeService.resolveCurrentScope();
+        return LabPage.query(() -> taskMapper.selectListByScope(scope, assigneeId, status));
     }
 
     @Override

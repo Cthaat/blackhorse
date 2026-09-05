@@ -18,6 +18,7 @@ public class LabReservation implements Serializable
     private String reservationNo;
     private Long deviceId;
     private Long applicantId;
+    private Long submitterId;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private String purpose;
@@ -46,6 +47,8 @@ public class LabReservation implements Serializable
     public void setReservationNo(String reservationNo) { this.reservationNo = reservationNo; }
     public Long getDeviceId() { return deviceId; }
     public void setDeviceId(Long deviceId) { this.deviceId = deviceId; }
+    public Long getSubmitterId() { return submitterId; }
+    public void setSubmitterId(Long submitterId) { this.submitterId = submitterId; }
     public Long getApplicantId() { return applicantId; }
     public void setApplicantId(Long applicantId) { this.applicantId = applicantId; }
     public LocalDateTime getStartTime() { return startTime; }

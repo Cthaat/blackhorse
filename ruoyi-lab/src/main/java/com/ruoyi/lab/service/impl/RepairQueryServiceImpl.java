@@ -1,6 +1,7 @@
 package com.ruoyi.lab.service.impl;
 
 import java.util.List;
+import com.ruoyi.lab.service.LabPage;
 import com.ruoyi.lab.dto.RepairQueryDto;
 import com.ruoyi.lab.exception.LabBusinessException;
 import com.ruoyi.lab.exception.LabErrorCode;
@@ -38,8 +39,8 @@ public class RepairQueryServiceImpl implements RepairQueryService
     {
         long userId = requirePositive(currentUserId);
         LabDataScope scope = dataScopeService.resolveCurrentScope();
-        return repairMapper.selectScopedList(query == null ? new RepairQueryDto() : query,
-                userId, scope);
+        return LabPage.query(() -> repairMapper.selectScopedList(query == null ? new RepairQueryDto() : query,
+                userId, scope));
     }
 
     @Override

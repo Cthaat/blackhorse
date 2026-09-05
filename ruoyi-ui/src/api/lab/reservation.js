@@ -1,5 +1,14 @@
 import request from '@/utils/request'
 
+export function delegateReservation(data, idempotencyKey) {
+  return request({
+    url: '/lab/reservations/delegate',
+    method: 'post',
+    headers: { 'X-Idempotency-Key': idempotencyKey, repeatSubmit: false },
+    data
+  })
+}
+
 function pathId(value) {
   if (value === undefined || value === null || String(value).trim() === '') {
     throw new TypeError('业务编号不能为空')

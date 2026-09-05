@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
+import com.ruoyi.lab.service.LabPage;
 import java.util.Objects;
 import java.util.Set;
 import com.ruoyi.lab.domain.InspectionFrequencyType;
@@ -125,8 +126,9 @@ public class InspectionPlanServiceImpl implements InspectionPlanService
     @Override
     public List<LabInspectionPlan> list(InspectionPlanStatus status, String keyword)
     {
-        return planMapper.selectListByScope(dataScopeService.resolveCurrentScope(), status,
-                normalize(keyword, 100));
+        var scope = dataScopeService.resolveCurrentScope();
+        return LabPage.query(() -> planMapper.selectListByScope(scope, status,
+                normalize(keyword, 100)));
     }
 
     @Override

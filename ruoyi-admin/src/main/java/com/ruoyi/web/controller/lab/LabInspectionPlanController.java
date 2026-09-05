@@ -1,7 +1,6 @@
 package com.ruoyi.web.controller.lab;
 
 import com.ruoyi.common.annotation.Log;
-import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
@@ -20,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 @Validated
 @RestController
 @RequestMapping("/lab/inspection-plans")
-public class LabInspectionPlanController extends BaseController
+public class LabInspectionPlanController extends LabBaseController
 {
     private final InspectionPlanService service;
     public LabInspectionPlanController(InspectionPlanService service) { this.service = service; }
@@ -36,8 +35,7 @@ public class LabInspectionPlanController extends BaseController
     @PreAuthorize("@ss.hasPermi('lab:inspection:plan:add')")
     @Log(title="巡检计划", businessType=BusinessType.INSERT)
     @PostMapping public ResponseEntity<AjaxResult> create(@Valid @RequestBody InspectionPlanCommand command)
-    { return ResponseEntity.status(HttpStatus.CREATED).body(success(
-            String.valueOf(service.create(command, getUserId(), getUsername())))); }
+    { return ResponseEntity.status(HttpStatus.CREATED).body(success().put("data", String.valueOf(service.create(command, getUserId(), getUsername())))); }
 
     @PreAuthorize("@ss.hasPermi('lab:inspection:plan:edit')")
     @Log(title="巡检计划", businessType=BusinessType.UPDATE)

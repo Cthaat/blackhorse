@@ -55,6 +55,7 @@
 </template>
 
 <script setup>
+import { loadAllOptions } from '@/utils/labOptions'
 import { computed, getCurrentInstance, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import StatusHistory from '@/components/lab/StatusHistory.vue'
@@ -99,7 +100,7 @@ async function loadContextOptions() {
   if (!task.value) return
   const results = await Promise.allSettled([
     getLaboratory(task.value.laboratoryId).then(response => { laboratory.value = response.data }),
-    listDevice({ pageNum: 1, pageSize: 500, laboratoryId: task.value.laboratoryId, sortBy: 'assetNo', sortDirection: 'asc' }).then(response => {
+    loadAllOptions(listDevice, { laboratoryId: task.value.laboratoryId, sortBy: 'assetNo', sortDirection: 'asc' }).then(response => {
       deviceOptions.value = (response.rows || []).map(item => ({ id: String(item.id), label: `${item.assetNo} · ${item.name}` }))
     }),
     listLabUserOptions({ roleKey: 'lab_safety_officer' }).then(response => {

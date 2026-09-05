@@ -141,7 +141,10 @@ class LabMapperXmlContractTest
 
         String sql = sql(statement(LabDeviceMapper.class, "selectListByScope"), parameters);
 
-        assertThat(sql).contains("d.del_flag = '0'", "and 1 = 0", "order by d.name asc");
+        assertThat(sql).contains("d.del_flag = '0'", "1 = 0", "order by d.name asc",
+                "student_ur.user_id = ?", "q.user_id = ?", "q.laboratory_id = d.laboratory_id",
+                "repair_ur.user_id = ?", "ro.assignee_id = ?")
+                .doesNotContain("1 = 1");
     }
 
     @Test
@@ -173,7 +176,7 @@ class LabMapperXmlContractTest
     }
 
     @Test
-    void categoryQualificationManagementRequiresOnlyANonEmptyScope()
+    void categoryQualificationManagementIsBoundToItsLaboratory()
     {
         String sql = sql(statement(LabQualificationMapper.class, "selectListByScope"),
                 params("scope", new LabDataScope(7L, false, Set.of(10L)),
@@ -181,7 +184,7 @@ class LabMapperXmlContractTest
                         "sort", new LabSortWhitelist().resolve("qualification", "createTime", "desc")));
 
         assertThat(sql)
-                .contains("q.scope_type = 'device_category'")
+                .contains("q.laboratory_id in")
                 .doesNotContain("from lab_device scoped_device");
     }
 
@@ -228,7 +231,7 @@ class LabMapperXmlContractTest
         String notifications = sql(statement(LabDashboardMapper.class,
                 "countUnreadNotifications"), params("userId", 7L));
 
-        assertThat(devices).containsPattern("and 1\\s*=\\s*0")
+        assertThat(devices).containsPattern("1\\s*=\\s*0")
                 .contains("group by d.status");
         assertThat(reservations).contains("r.applicant_id = ?", "r.start_time >= ?",
                 "r.start_time < ?", "group by r.status");

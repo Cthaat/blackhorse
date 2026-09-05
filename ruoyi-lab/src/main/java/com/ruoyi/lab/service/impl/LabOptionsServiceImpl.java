@@ -1,6 +1,7 @@
 package com.ruoyi.lab.service.impl;
 
 import java.util.List;
+import com.ruoyi.lab.service.LabPage;
 import java.util.Set;
 import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.lab.dto.LabUserOptionQueryDto;
@@ -44,7 +45,7 @@ public class LabOptionsServiceImpl implements LabOptionsService, LabUserDirector
         {
             throw validation("关键词长度不能超过50个字符");
         }
-        return optionsMapper.selectActiveUserOptions(roleKey, keyword);
+        return LabPage.query(() -> optionsMapper.selectActiveUserOptions(roleKey, keyword));
     }
 
     @Override
@@ -54,7 +55,7 @@ public class LabOptionsServiceImpl implements LabOptionsService, LabUserDirector
         boolean builtInAdmin = SecurityUtils.isAdmin(userId);
         Set<Long> departmentIds = builtInAdmin ? Set.of()
                 : objectPermissionService.readableDepartmentIds();
-        return optionsMapper.selectActiveDepartmentOptions(builtInAdmin, departmentIds);
+        return LabPage.query(() -> optionsMapper.selectActiveDepartmentOptions(builtInAdmin, departmentIds));
     }
 
     @Override

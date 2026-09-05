@@ -8,7 +8,15 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         select count(1)
         from lab_reservation r
         join lab_device d on d.id = r.device_id and d.del_flag = '0'
-        where r.del_flag = '0' and r.status in ('PENDING', 'APPROVED')
+        where r.del_flag = '0'
+        <choose>
+            <when test="scope != null">
+                and r.status = 'PENDING'
+                and r.applicant_id &lt;&gt; #{userId}
+                and coalesce(r.submitter_id, r.applicant_id) &lt;&gt; #{userId}
+            </when>
+            <otherwise>and r.status in ('PENDING', 'APPROVED')</otherwise>
+        </choose>
           and (
               r.applicant_id = #{userId}
               <choose>
@@ -111,17 +119,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <select id="countDeviceStates" resultType="com.ruoyi.lab.vo.LabMetricVo">
         select d.status as code, count(1) as value
         from lab_device d
+        join lab_laboratory l on l.id = d.laboratory_id and l.del_flag = '0'
         where d.del_flag = '0'
-        <choose>
-            <when test="scope != null and scope.allLaboratories"><!-- unrestricted --></when>
-            <when test="scope != null and scope.restricted() and scope.laboratoryIds != null and !scope.laboratoryIds.isEmpty()">
-                and d.laboratory_id in
-                <foreach collection="scope.laboratoryIds" item="laboratoryId" open="(" separator="," close=")">
-                    #{laboratoryId}
-                </foreach>
-            </when>
-            <otherwise>and 1 = 0</otherwise>
-        </choose>
+        <bind name="currentUserId" value="scope.userId" />
+        <include refid="com.ruoyi.lab.mapper.LabDeviceMapper.DeviceReadablePredicate" />
         group by d.status
         order by d.status
     </select>
