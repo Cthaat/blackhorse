@@ -1,20 +1,13 @@
 <template>
   <div class="sidebar-logo-container" :class="{ 'collapse': collapse }">
-    <transition name="sidebarLogoFade">
-      <router-link v-if="collapse" key="collapse" class="sidebar-logo-link" to="/">
-        <img v-if="logo" :src="logo" class="sidebar-logo" />
-        <h1 v-else class="sidebar-title">{{ title }}</h1>
-      </router-link>
-      <router-link v-else key="expand" class="sidebar-logo-link" to="/">
-        <img v-if="logo" :src="logo" class="sidebar-logo" />
-        <h1 class="sidebar-title">{{ title }}</h1>
-      </router-link>
-    </transition>
+    <router-link class="sidebar-logo-link" to="/" :aria-label="title + '首页'">
+      <span class="lab-brand-mark" aria-hidden="true">L<span>·</span></span>
+      <span v-if="!collapse" class="lab-brand-copy"><strong>实验室工作台</strong><small>安全 · 设备 · 协作</small></span>
+    </router-link>
   </div>
 </template>
 
 <script setup>
-import logo from '@/assets/logo/logo.png'
 import useSettingsStore from '@/store/modules/settings'
 import variables from '@/assets/styles/variables.module.scss'
 
@@ -53,50 +46,17 @@ const getLogoTextColor = computed(() => {
 </script>
 
 <style lang="scss" scoped>
-.sidebarLogoFade-enter-active {
-  transition: opacity 1.5s;
-}
-
-.sidebarLogoFade-enter,
-.sidebarLogoFade-leave-to {
-  opacity: 0;
-}
-
 .sidebar-logo-container {
-  position: relative;
   height: 50px;
-  line-height: 50px;
   background: v-bind(getLogoBackground);
-  text-align: center;
+  color: v-bind(getLogoTextColor);
   overflow: hidden;
-
-  & .sidebar-logo-link {
-    height: 100%;
-    width: 100%;
-
-    & .sidebar-logo {
-      width: 32px;
-      height: 32px;
-      vertical-align: middle;
-      margin-right: 12px;
-    }
-
-    & .sidebar-title {
-      display: inline-block;
-      margin: 0;
-      color: v-bind(getLogoTextColor);
-      font-weight: 600;
-      line-height: 50px;
-      font-size: 14px;
-      font-family: Avenir, Helvetica Neue, Arial, Helvetica, sans-serif;
-      vertical-align: middle;
-    }
-  }
-
-  &.collapse {
-    .sidebar-logo {
-      margin-right: 0px;
-    }
-  }
+  .sidebar-logo-link { display: flex !important; align-items: center; gap: 12px; height: 100%; padding: 0 16px; }
+  &.collapse .sidebar-logo-link { padding: 0 10px; }
 }
+.lab-brand-mark { display: grid; grid-template-columns: auto auto; align-items: center; justify-content: center; flex: 0 0 32px; height: 32px; background: #d9f4eb; color: #115e59; border-radius: 8px; font-size: 26px; font-weight: 800; line-height: 1; }
+.lab-brand-mark span { color: #16876e; }
+.lab-brand-copy { display: flex; flex-direction: column; gap: 4px; white-space: nowrap; text-align: left; }
+.lab-brand-copy strong { font-size: 15px; letter-spacing: 1px; }
+.lab-brand-copy small { font-size: 10px; opacity: .75; letter-spacing: 2px; }
 </style>

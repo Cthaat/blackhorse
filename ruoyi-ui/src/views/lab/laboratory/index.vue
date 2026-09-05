@@ -1,5 +1,6 @@
 <template>
-  <div class="app-container">
+  <div class="app-container lab-page">
+    <div class="page-heading"><div><h1>实验室管理</h1><p>维护实验室档案、负责人和开放状态，让资源信息清晰可查。</p></div></div>
     <el-form v-show="showSearch" ref="queryRef" :model="queryParams" :inline="true">
       <el-form-item label="关键词" prop="keyword">
         <el-input
@@ -33,6 +34,8 @@
     <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon :closable="false" class="mb12">
       <template #default><el-button link type="primary" @click="getList">重新加载</el-button></template>
     </el-alert>
+
+    <p class="lab-table-hint">左右滑动表格可查看完整信息与操作</p>
 
     <el-table v-loading="loading" :data="laboratoryList" @row-dblclick="handleDetail">
       <el-table-column label="实验室编码" prop="labCode" min-width="150" show-overflow-tooltip />
@@ -151,7 +154,7 @@
       </el-alert>
       <div v-loading="detailLoading" class="detail-body">
         <template v-if="detail">
-          <el-descriptions :column="2" border class="mb20">
+          <lab-descriptions :column="2" border class="mb20">
             <el-descriptions-item label="实验室编码">{{ detail.labCode }}</el-descriptions-item>
             <el-descriptions-item label="实验室名称">{{ detail.name }}</el-descriptions-item>
             <el-descriptions-item label="所属部门">{{ deptLabel(detail.deptId) }}</el-descriptions-item>
@@ -164,7 +167,7 @@
             <el-descriptions-item label="说明" :span="2">{{ detail.description || '—' }}</el-descriptions-item>
             <el-descriptions-item label="创建时间">{{ parseTime(detail.createTime) }}</el-descriptions-item>
             <el-descriptions-item label="更新时间">{{ parseTime(detail.updateTime) || '—' }}</el-descriptions-item>
-          </el-descriptions>
+          </lab-descriptions>
           <el-tabs>
             <el-tab-pane v-if="canReadAttachment" label="附件">
               <attachment-panel business-type="LABORATORY" :business-id="detail.id" :can-manage="canManageAttachment" />

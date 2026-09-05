@@ -15,7 +15,7 @@
 
     <div v-loading="loading" class="detail-body">
       <template v-if="device">
-        <el-descriptions :column="2" border class="mb20">
+        <lab-descriptions :column="2" border class="mb20">
           <el-descriptions-item label="资产编号">{{ device.assetNo }}</el-descriptions-item>
           <el-descriptions-item label="设备名称">{{ device.name }}</el-descriptions-item>
           <el-descriptions-item label="实验室">{{ laboratoryLabel(device.laboratoryId) }}</el-descriptions-item>
@@ -32,7 +32,7 @@
           <el-descriptions-item label="说明" :span="2">{{ device.description || '—' }}</el-descriptions-item>
           <el-descriptions-item label="创建时间">{{ parseTime(device.createTime) }}</el-descriptions-item>
           <el-descriptions-item label="更新时间">{{ parseTime(device.updateTime) || '—' }}</el-descriptions-item>
-        </el-descriptions>
+        </lab-descriptions>
 
         <el-tabs v-model="activeTab">
           <el-tab-pane label="占用时间" name="occupied">

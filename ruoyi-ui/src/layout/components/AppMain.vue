@@ -1,5 +1,5 @@
 <template>
-  <section class="app-main">
+  <main ref="mainContent" id="main-content" class="app-main" tabindex="-1">
     <router-view v-slot="{ Component, route }">
       <transition name="fade-transform" mode="out-in">
         <keep-alive :include="tagsViewStore.cachedViews">
@@ -9,16 +9,22 @@
     </router-view>
     <iframe-toggle />
     <copyright />
-  </section>
+  </main>
 </template>
 
 <script setup>
-import copyright from "./Copyright/index"
-import iframeToggle from "./IframeToggle/index"
+import { ref, watch } from 'vue'
+import copyright from "./Copyright/index.vue"
+import iframeToggle from "./IframeToggle/index.vue"
 import useTagsViewStore from '@/store/modules/tagsView'
 
 const route = useRoute()
 const tagsViewStore = useTagsViewStore()
+const mainContent = ref(null)
+watch(() => route.path, () => {
+  if (mainContent.value) mainContent.value.scrollTop = 0
+})
+
 
 onMounted(() => {
   addIframe()

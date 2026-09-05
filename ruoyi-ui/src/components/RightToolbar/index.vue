@@ -2,15 +2,15 @@
   <div class="top-right-btn" :style="style">
     <el-row>
       <el-tooltip class="item" effect="dark" :content="showSearch ? '隐藏搜索' : '显示搜索'" placement="top" v-if="search">
-        <el-button circle icon="Search" @click="toggleSearch()" />
+        <el-button circle :aria-label="showSearch ? '隐藏搜索' : '显示搜索'" icon="Search" @click="toggleSearch()" />
       </el-tooltip>
       <el-tooltip class="item" effect="dark" content="刷新" placement="top">
-        <el-button circle icon="Refresh" @click="refresh()" />
+        <el-button circle aria-label="刷新列表" icon="Refresh" @click="refresh()" />
       </el-tooltip>
       <el-tooltip class="item" effect="dark" content="显隐列" placement="top" v-if="Object.keys(columns).length > 0">
-        <el-button circle icon="Menu" @click="showColumn()" v-if="showColumnsType == 'transfer'"/>
+        <el-button circle aria-label="设置显示列" icon="Menu" @click="showColumn()" v-if="showColumnsType == 'transfer'"/>
         <el-dropdown trigger="click" :hide-on-click="false" style="padding-left: 12px" v-if="showColumnsType == 'checkbox'">
-          <el-button circle icon="Menu" />
+          <el-button circle aria-label="设置显示列" icon="Menu" />
           <template #dropdown>
             <el-dropdown-menu>
               <!-- 全选/反选 按钮 -->

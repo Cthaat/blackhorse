@@ -1,5 +1,6 @@
 <template>
-  <div class="app-container">
+  <div class="app-container lab-page">
+    <div class="page-heading"><div><h1>巡检任务</h1><p>跟踪任务进度与截止时间，按检查项记录结果并处理异常。</p></div></div>
     <el-form v-show="showSearch" :model="query" inline>
       <el-form-item label="任务状态">
         <el-select v-model="query.status" clearable placeholder="全部" style="width: 170px">
@@ -13,6 +14,7 @@
       </el-form-item>
     </el-form>
     <el-row :gutter="10" class="mb8"><right-toolbar v-model:showSearch="showSearch" @queryTable="loadTasks" /></el-row>
+    <p class="lab-table-hint">左右滑动表格可查看完整信息与操作</p>
     <el-table v-loading="loading" :data="tasks">
       <el-table-column label="任务编号" prop="taskNo" min-width="190" />
       <el-table-column label="实验室" min-width="180" show-overflow-tooltip><template #default="{ row }">{{ laboratoryLabel(row.laboratoryId) }}</template></el-table-column>

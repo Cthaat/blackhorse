@@ -1,5 +1,6 @@
 <template>
-  <div class="app-container">
+  <div class="app-container lab-page">
+    <div class="page-heading"><div><h1>准入资格管理</h1><p>管理学生的实验室与设备使用资格，跟踪有效期和授权记录。</p></div></div>
     <el-form v-show="showSearch" ref="queryRef" :model="queryParams" :inline="true">
       <el-form-item label="用户" prop="userId">
         <el-select
@@ -35,6 +36,8 @@
     <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon :closable="false" class="mb12">
       <template #default><el-button link type="primary" @click="getList">重新加载</el-button></template>
     </el-alert>
+
+    <p class="lab-table-hint">左右滑动表格可查看完整信息与操作</p>
 
     <el-table v-loading="loading" :data="qualificationList" @row-dblclick="handleDetail">
       <el-table-column label="用户" min-width="170" show-overflow-tooltip>
@@ -169,7 +172,7 @@
       </el-alert>
       <div v-loading="detailLoading" class="detail-body">
         <template v-if="detail">
-          <el-descriptions :column="2" border class="mb20">
+          <lab-descriptions :column="2" border class="mb20">
             <el-descriptions-item label="用户">{{ userLabel(detail.userId) }}</el-descriptions-item>
             <el-descriptions-item label="当前状态">
               <el-tag :type="statusMeta(detail.status).type">{{ statusMeta(detail.status).label }}</el-tag>
@@ -185,7 +188,7 @@
             <el-descriptions-item label="撤销原因" :span="2">{{ detail.revokeReason || '—' }}</el-descriptions-item>
             <el-descriptions-item label="创建时间">{{ parseTime(detail.createTime) }}</el-descriptions-item>
             <el-descriptions-item label="更新时间">{{ parseTime(detail.updateTime) || '—' }}</el-descriptions-item>
-          </el-descriptions>
+          </lab-descriptions>
           <el-tabs>
             <el-tab-pane v-if="canReadAttachment" label="附件">
               <attachment-panel business-type="QUALIFICATION" :business-id="detail.id" :can-manage="canManageAttachment" />

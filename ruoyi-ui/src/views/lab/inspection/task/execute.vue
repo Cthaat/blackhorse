@@ -1,15 +1,15 @@
 <template>
-  <div class="app-container" v-loading="loading">
-    <el-page-header content="执行巡检" @back="router.back()" />
+  <div class="app-container lab-page" v-loading="loading">
+    <el-page-header class="lab-detail-header" @back="router.back()"><template #content><h1>执行巡检</h1></template></el-page-header>
     <el-card v-if="task" class="task-card" shadow="never">
-      <el-descriptions :column="3" border>
+      <lab-descriptions :column="3" border>
         <el-descriptions-item label="任务编号">{{ task.taskNo }}</el-descriptions-item>
         <el-descriptions-item label="实验室">{{ laboratoryLabel }}</el-descriptions-item>
-        <el-descriptions-item label="状态"><el-tag :type="task.status === 'COMPLETED' ? 'success' : 'primary'">{{ task.status }}</el-tag></el-descriptions-item>
+        <el-descriptions-item label="状态"><el-tag :type="task.status === 'COMPLETED' ? 'success' : 'primary'">{{ { PENDING: '待执行', IN_PROGRESS: '执行中', COMPLETED: '已完成', OVERDUE: '已超期' }[task.status] || task.status }}</el-tag></el-descriptions-item>
         <el-descriptions-item label="负责人">{{ assigneeLabel }}</el-descriptions-item>
         <el-descriptions-item label="截止时间">{{ parseTime(task.deadlineAt) }}</el-descriptions-item>
         <el-descriptions-item label="超期">{{ task.overdueFlag === '1' ? '是' : '否' }}</el-descriptions-item>
-      </el-descriptions>
+      </lab-descriptions>
       <div v-if="task.status === 'PENDING'" class="task-actions">
         <el-button type="primary" :loading="submitting" v-hasPermi="['lab:inspection:task:execute']" @click="startTask">开始任务</el-button>
       </div>

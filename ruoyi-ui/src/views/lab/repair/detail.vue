@@ -20,7 +20,7 @@
           <el-tag :type="statusType(detail.order.status)" effect="light">{{ statusLabel(detail.order.status) }}</el-tag>
         </div>
 
-        <el-descriptions :column="2" border class="mt16">
+        <lab-descriptions :column="2" border class="mt16">
           <el-descriptions-item label="设备">{{ detail.order.assetNo }} · {{ detail.order.deviceName }}</el-descriptions-item>
           <el-descriptions-item label="工单状态">{{ statusLabel(detail.order.status) }}</el-descriptions-item>
           <el-descriptions-item label="来源">{{ sourceLabel(detail.order.sourceType) }}</el-descriptions-item>
@@ -38,7 +38,7 @@
           <el-descriptions-item label="验收原因" :span="2">{{ detail.order.acceptanceReason || '-' }}</el-descriptions-item>
           <el-descriptions-item label="创建时间">{{ formatDateTime(detail.order.createTime) }}</el-descriptions-item>
           <el-descriptions-item label="版本">{{ detail.order.version }}</el-descriptions-item>
-        </el-descriptions>
+        </lab-descriptions>
 
         <section class="detail-section">
           <h3>处理时间线</h3>

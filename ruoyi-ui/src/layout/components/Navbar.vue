@@ -15,15 +15,17 @@
         <screenfull id="screenfull" class="right-menu-item hover-effect" />
 
         <el-tooltip content="主题模式" effect="dark" placement="bottom">
-          <div class="right-menu-item hover-effect theme-switch-wrapper" @click="toggleTheme">
+          <button type="button" :aria-label="settingsStore.isDark ? '切换浅色主题' : '切换深色主题'" class="right-menu-item hover-effect theme-switch-wrapper" @click="toggleTheme">
             <svg-icon v-if="settingsStore.isDark" icon-class="sunny" />
             <svg-icon v-if="!settingsStore.isDark" icon-class="moon" />
-          </div>
+          </button>
         </el-tooltip>
 
         <el-tooltip content="布局大小" effect="dark" placement="bottom">
           <size-select id="size-select" class="right-menu-item hover-effect" />
         </el-tooltip>
+
+      </template>
 
         <el-tooltip v-if="canViewLabNotifications" content="实验室消息中心" effect="dark" placement="bottom">
           <button
@@ -41,13 +43,12 @@
             >{{ labNotificationBadge }}</span>
           </button>
         </el-tooltip>
-      </template>
 
-      <el-dropdown @command="handleCommand" class="avatar-container right-menu-item hover-effect" trigger="hover">
-        <div class="avatar-wrapper">
-          <img :src="userStore.avatar" class="user-avatar" />
+      <el-dropdown @command="handleCommand" class="avatar-container right-menu-item hover-effect" trigger="click">
+        <button type="button" class="avatar-wrapper" :aria-label="userStore.nickName + '，账户菜单'">
+          <img :src="userStore.avatar" class="user-avatar" alt="" />
           <span class="user-nickname"> {{ userStore.nickName }} </span>
-        </div>
+        </button>
         <template #dropdown>
           <el-dropdown-menu>
             <router-link to="/user/profile">
@@ -239,7 +240,10 @@ async function toggleTheme(event) {
   }
 
   .breadcrumb-container {
-    flex-shrink: 0;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
   }
 
   .topmenu-container {
@@ -262,6 +266,7 @@ async function toggleTheme(event) {
     display: flex;
     align-items: center;
     margin-left: auto;
+    flex-shrink: 0;
 
     &:focus {
       outline: none;
@@ -272,7 +277,7 @@ async function toggleTheme(event) {
       padding: 0 8px;
       height: 100%;
       font-size: 18px;
-      color: #5a5e66;
+      color: var(--lab-muted);
       vertical-align: text-bottom;
 
       &.hover-effect {
@@ -285,6 +290,8 @@ async function toggleTheme(event) {
       }
 
       &.theme-switch-wrapper {
+        border: 0;
+        background: transparent;
         display: flex;
         align-items: center;
 
@@ -334,22 +341,29 @@ async function toggleTheme(event) {
       padding-right: 0px;
 
       .avatar-wrapper {
-        margin-top: 10px;
-        right: 8px;
-        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 100%;
+        padding: 0 16px 0 8px;
+        border: 0;
+        background: transparent;
+        color: var(--lab-ink);
+        cursor: pointer;
 
         .user-avatar {
           cursor: pointer;
           width: 30px;
           height: 30px;
-          margin-right: 8px;
+          flex-shrink: 0;
           border-radius: 50%;
         }
 
         .user-nickname{
-          position: relative;
-          left: 0px;
-          bottom: 10px;
+          max-width: 160px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
           font-size: 14px;
           font-weight: bold;
         }
@@ -364,5 +378,14 @@ async function toggleTheme(event) {
       }
     }
   }
+}
+@media (max-width: 767px) {
+  .navbar .breadcrumb-container :deep(.el-breadcrumb__item:not(:last-child)) { display: none; }
+  .navbar .right-menu .avatar-container .avatar-wrapper { padding-right: 12px; }
+  .navbar .right-menu .avatar-container .user-nickname { max-width: 84px; }
+  .navbar .hamburger-container { margin-right: 0; }
+}
+@media (max-width: 360px) {
+  .navbar .right-menu .avatar-container .user-nickname { display: none; }
 }
 </style>

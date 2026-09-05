@@ -1,5 +1,6 @@
 <template>
-  <div class="app-container">
+  <div class="app-container lab-page">
+    <div class="page-heading"><div><h1>设备资产</h1><p>查看设备状态与占用情况，管理资产档案和设备生命周期。</p></div></div>
     <el-form v-show="showSearch" ref="queryRef" :model="queryParams" :inline="true">
       <el-form-item label="关键词" prop="keyword">
         <el-input
@@ -50,6 +51,8 @@
     >
       <template #default><el-button link type="primary" @click="getList">重新加载</el-button></template>
     </el-alert>
+
+    <p class="lab-table-hint">左右滑动表格可查看完整信息与操作</p>
 
     <el-table v-loading="loading" :data="deviceList" @row-dblclick="handleDetail">
       <el-table-column label="资产编号" prop="assetNo" min-width="150" show-overflow-tooltip />

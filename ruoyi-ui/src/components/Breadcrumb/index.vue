@@ -3,7 +3,7 @@
     <transition-group name="breadcrumb">
       <el-breadcrumb-item v-for="(item, index) in levelList" :key="item.path">
         <span v-if="item.redirect === 'noRedirect' || index == levelList.length - 1" class="no-redirect">{{ item.meta.title }}</span>
-        <a v-else @click.prevent="handleLink(item)">{{ item.meta.title }}</a>
+        <a v-else :href="item.redirect || item.path" @click.prevent="handleLink(item)">{{ item.meta.title }}</a>
       </el-breadcrumb-item>
     </transition-group>
   </el-breadcrumb>
@@ -23,14 +23,14 @@ function getBreadcrumb() {
   const pathNum = findPathNum(route.path)
   // multi-level menu
   if (pathNum > 2) {
-    const reg = /\/\w+/gi
-    const pathList = route.path.match(reg).map((item, index) => {
-      if (index !== 0) item = item.slice(1)
-      return item
-    })
+    const pathList = route.path.split('/').filter(Boolean)
+    pathList[0] = '/' + pathList[0]
     getMatched(pathList, permissionStore.defaultRoutes, matched)
   } else {
     matched = route.matched.filter((item) => item.meta && item.meta.title)
+  }
+  if (route.meta?.title && matched.at(-1)?.meta?.title !== route.meta.title) {
+    matched.push({ path: route.path, meta: route.meta })
   }
   // 判断是否为首页
   if (!isDashboard(matched[0])) {
@@ -48,7 +48,7 @@ function findPathNum(str, char = "/") {
   return num
 }
 function getMatched(pathList, routeList, matched) {
-  let data = routeList.find(item => item.path == pathList[0] || (item.name += '').toLowerCase() == pathList[0])
+  let data = routeList.find(item => item.path == pathList[0] || String(item.name || '').toLowerCase() == pathList[0])
   if (data) {
     matched.push(data)
     if (data.children && pathList.length) {

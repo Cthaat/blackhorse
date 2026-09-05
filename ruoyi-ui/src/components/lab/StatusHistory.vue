@@ -146,6 +146,8 @@ defineExpose({ refresh: loadHistory })
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
 }
 
 .initial-status,

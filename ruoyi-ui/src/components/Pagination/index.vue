@@ -1,12 +1,12 @@
 <template>
-  <div :class="{ 'hidden': hidden }" class="pagination-container">
+  <div ref="container" :class="{ 'hidden': hidden }" class="pagination-container">
     <el-pagination
       :background="background"
       v-model:current-page="currentPage"
       v-model:page-size="pageSize"
-      :layout="layout"
+      :layout="responsiveLayout"
       :page-sizes="pageSizes"
-      :pager-count="pagerCount"
+      :pager-count="responsivePagerCount"
       :total="total"
       @size-change="handleSizeChange"
       @current-change="handleCurrentChange"
@@ -15,7 +15,8 @@
 </template>
 
 <script setup>
-import { scrollTo } from '@/utils/scroll-to'
+import { computed, ref } from 'vue'
+import { useWindowSize } from '@vueuse/core'
 
 const props = defineProps({
   total: {
@@ -39,11 +40,11 @@ const props = defineProps({
   // 移动端页码按钮的数量端默认值5
   pagerCount: {
     type: Number,
-    default: document.body.clientWidth < 992 ? 5 : 7
+    default: undefined
   },
   layout: {
     type: String,
-    default: 'total, sizes, prev, pager, next, jumper'
+    default: undefined
   },
   background: {
     type: Boolean,
@@ -59,7 +60,13 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits()
+const emit = defineEmits(['update:page', 'update:limit', 'pagination'])
+const container = ref(null)
+const { width } = useWindowSize()
+const responsivePagerCount = computed(() => props.pagerCount ?? (width.value < 992 ? 5 : 7))
+const responsiveLayout = computed(() => props.layout ?? (width.value < 768
+  ? 'total, prev, pager, next'
+  : 'total, sizes, prev, pager, next, jumper'))
 const currentPage = computed({
   get() {
     return props.page
@@ -78,26 +85,30 @@ const pageSize = computed({
 })
 
 function handleSizeChange(val) {
-  if (currentPage.value * val > props.total) {
-    currentPage.value = 1
-  }
-  emit('pagination', { page: currentPage.value, limit: val })
-  if (props.autoScroll) {
-    scrollTo(0, 800)
-  }
+  const page = currentPage.value * val > props.total ? 1 : currentPage.value
+  currentPage.value = page
+  emit('pagination', { page, limit: val })
+  scrollContent()
 }
 
 function handleCurrentChange(val) {
   emit('pagination', { page: val, limit: pageSize.value })
-  if (props.autoScroll) {
-    scrollTo(0, 800)
-  }
+  scrollContent()
+}
+
+function scrollContent() {
+  if (!props.autoScroll) return
+  let target = container.value?.parentElement
+  while (target && !/(auto|scroll)/.test(getComputedStyle(target).overflowY)) target = target.parentElement
+  target ??= window
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  target.scrollTo({ top: 0, behavior: reducedMotion ? 'auto' : 'smooth' })
 }
 </script>
 
 <style scoped>
 .pagination-container {
-  background: #fff;
+  background: transparent;
 }
 .pagination-container.hidden {
   display: none;

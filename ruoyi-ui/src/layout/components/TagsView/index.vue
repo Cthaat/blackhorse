@@ -1,9 +1,9 @@
 <template>
   <div id="tags-view-container" class="tags-view-container" :class="{ 'tags-view-container--chrome': tagsViewStyle === 'chrome' }">
     <!-- 左切换箭头 -->
-    <span class="tags-nav-btn tags-nav-btn--left" :class="{ disabled: !canScrollLeft }" @click="scrollLeft">
+    <button type="button" aria-label="向左滚动页签" :disabled="!canScrollLeft" class="tags-nav-btn tags-nav-btn--left" :class="{ disabled: !canScrollLeft }" @click="scrollLeft">
       <el-icon><arrow-left /></el-icon>
-    </span>
+    </button>
 
     <!-- 标签滚动区 -->
     <scroll-pane ref="scrollPaneRef" class="tags-view-wrapper" @scroll="handleScroll" @update-arrows="updateArrowState">
@@ -20,22 +20,22 @@
       >
         <svg-icon v-if="tagsIcon && tag.meta && tag.meta.icon && tag.meta.icon !== '#'" :icon-class="tag.meta.icon" style="margin-right: 3px;" />
         {{ tag.title }}
-        <span v-if="!isAffix(tag)" @click.prevent.stop="closeSelectedTag(tag)" class="tags-close-btn">
+        <span v-if="!isAffix(tag)" role="button" tabindex="0" :aria-label="'关闭' + tag.title" @keydown.enter.prevent.stop="closeSelectedTag(tag)" @keydown.space.prevent.stop="closeSelectedTag(tag)" @click.prevent.stop="closeSelectedTag(tag)" class="tags-close-btn">
           <close class="el-icon-close" />
         </span>
       </router-link>
     </scroll-pane>
 
     <!-- 右切换箭头 -->
-    <span class="tags-nav-btn tags-nav-btn--right" :class="{ disabled: !canScrollRight }" @click="scrollRight">
+    <button type="button" aria-label="向右滚动页签" :disabled="!canScrollRight" class="tags-nav-btn tags-nav-btn--right" :class="{ disabled: !canScrollRight }" @click="scrollRight">
       <el-icon><arrow-right /></el-icon>
-    </span>
+    </button>
 
     <!-- 下拉操作菜单 -->
     <el-dropdown class="tags-action-dropdown" trigger="click" placement="bottom-end" @command="handleDropdownCommand">
-      <span class="tags-action-btn">
+      <button type="button" aria-label="页签操作菜单" class="tags-action-btn">
         <el-icon><arrow-down /></el-icon>
-      </span>
+      </button>
       <template #dropdown>
         <el-dropdown-menu class="tags-dropdown-menu">
           <el-dropdown-item v-if="!isAffix(selectedDropdownTag)" command="close"><close style="width: 1em; height: 1em;" />关闭当前</el-dropdown-item>
@@ -52,9 +52,9 @@
     </el-dropdown>
 
     <!-- 刷新按钮 -->
-    <span class="tags-action-btn tags-refresh-btn" title="刷新页面" @click="refreshSelectedTag(selectedDropdownTag)">
+    <button type="button" class="tags-action-btn tags-refresh-btn" aria-label="刷新当前页面" title="刷新页面" @click="refreshSelectedTag(selectedDropdownTag)">
       <el-icon><refresh-right/></el-icon> 刷新
-    </span>
+    </button>
 
     <!-- 右键上下文菜单 -->
     <ul v-show="visible" :style="{ left: left + 'px', top: top + 'px' }" class="contextmenu">
@@ -389,6 +389,8 @@ $tags-bar-height: 34px;
   $divider: 1px solid var(--tags-item-border, #d8dce5);
 
   .tags-nav-btn {
+    border: 0;
+    background: transparent;
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -471,6 +473,8 @@ $tags-bar-height: 34px;
   }
 
   .tags-action-btn {
+    border: 0;
+    background: transparent;
     display: flex;
     align-items: center;
     justify-content: center;

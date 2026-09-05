@@ -27,7 +27,7 @@
           </div>
           <el-tag :type="statusType(detail.status)" effect="light">{{ statusLabel(detail.status) }}</el-tag>
         </div>
-        <el-descriptions :column="2" border class="mt16">
+        <lab-descriptions :column="2" border class="mt16">
           <el-descriptions-item label="设备">{{ optionLabel(deviceOptions, detail.deviceId, '设备') }}</el-descriptions-item>
           <el-descriptions-item label="申请人">{{ optionLabel(applicantOptions, detail.applicantId, '用户') }}</el-descriptions-item>
           <el-descriptions-item label="提交方式" :span="2">{{ detail.submitterId && detail.submitterId !== detail.applicantId ? `管理员代办（提交人 ${detail.submitterId}）` : '本人申请' }}</el-descriptions-item>
@@ -42,7 +42,7 @@
           <el-descriptions-item label="版本">{{ detail.version }}</el-descriptions-item>
           <el-descriptions-item label="取消原因" :span="2">{{ detail.cancelReason || '-' }}</el-descriptions-item>
           <el-descriptions-item label="创建时间" :span="2">{{ formatDateTime(detail.createTime) }}</el-descriptions-item>
-        </el-descriptions>
+        </lab-descriptions>
       </template>
     </div>
   </el-drawer>

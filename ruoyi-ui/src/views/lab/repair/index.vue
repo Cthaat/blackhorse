@@ -1,5 +1,5 @@
 <template>
-  <div class="app-container repair-page">
+  <div class="app-container lab-page repair-page">
     <div class="page-heading">
       <div>
         <h1>维修工单</h1>
@@ -33,12 +33,14 @@
           报告故障
         </el-button>
       </el-col>
-      <right-toolbar :show-search="false" @queryTable="getList" />
+      <right-toolbar :search="false" @queryTable="getList" />
     </el-row>
 
     <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon :closable="false" class="mb16">
       <template #default><el-button link type="primary" @click="getList">重新加载</el-button></template>
     </el-alert>
+
+    <p class="lab-table-hint">左右滑动表格可查看完整信息与操作</p>
 
     <el-table v-loading="loading" :data="rows" row-key="id">
       <el-table-column label="维修编号" prop="repairNo" min-width="176" show-overflow-tooltip />

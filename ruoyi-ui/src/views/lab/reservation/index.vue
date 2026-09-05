@@ -1,5 +1,5 @@
 <template>
-  <div class="app-container reservation-page">
+  <div class="app-container lab-page reservation-page">
     <div class="page-heading">
       <div>
         <h1>{{ approvalMode ? '预约审批' : '我的预约' }}</h1>
@@ -53,7 +53,7 @@
       </el-col>
       <el-button type="primary" plain icon="Plus" v-hasPermi="['lab:reservation:delegate']"
         @click="delegated = true; applyOpen = true">代学生预约</el-button>
-      <right-toolbar :show-search="false" @queryTable="getList" />
+      <right-toolbar :search="false" @queryTable="getList" />
     </el-row>
 
     <el-alert
@@ -70,6 +70,8 @@
     <el-alert v-if="optionsError" :title="optionsError" type="error" show-icon :closable="false" class="mb16">
       <template #default><el-button link type="primary" @click="loadOptions">重新加载选项</el-button></template>
     </el-alert>
+
+    <p class="lab-table-hint">左右滑动表格可查看完整信息与操作</p>
 
     <el-table v-loading="loading" :data="rows" row-key="id">
       <el-table-column label="预约编号" prop="reservationNo" min-width="176" show-overflow-tooltip />

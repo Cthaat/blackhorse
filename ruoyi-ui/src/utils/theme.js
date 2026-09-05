@@ -4,7 +4,8 @@ export function handleThemeStyle(theme) {
   const primary = isDark ? softenPrimaryForDark(theme) : theme
   document.documentElement.style.setProperty('--el-color-primary', primary)
   for (let i = 1; i <= 9; i++) {
-    document.documentElement.style.setProperty(`--el-color-primary-light-${i}`, `${getLightColor(primary, i / 10)}`)
+    const tint = isDark ? mixHexColors(primary, '#141414', i / 10) : getLightColor(primary, i / 10)
+    document.documentElement.style.setProperty(`--el-color-primary-light-${i}`, tint)
   }
   for (let i = 1; i <= 9; i++) {
     document.documentElement.style.setProperty(`--el-color-primary-dark-${i}`, `${getDarkColor(primary, i / 10)}`)
@@ -19,9 +20,9 @@ export function mixHexColors(fg, bg, t) {
   return rgbToHex(out[0], out[1], out[2])
 }
 
-/** 暗色模式下柔化主题色 */
+/** 暗色模式提高强调色明度，保证链接、标签和表单状态可读。 */
 export function softenPrimaryForDark(theme) {
-  return mixHexColors(theme, '#2d3036', 0.34)
+  return mixHexColors(theme, '#ffffff', 0.55)
 }
 
 // hex颜色转rgb颜色

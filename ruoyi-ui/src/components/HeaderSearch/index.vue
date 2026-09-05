@@ -1,9 +1,10 @@
 <template>
   <div class="header-search">
-    <svg-icon class-name="search-icon" icon-class="search" @click.stop="click" />
+    <button type="button" class="search-trigger" aria-label="搜索功能菜单" @click.stop="click"><svg-icon class-name="search-icon" icon-class="search" /></button>
     <el-dialog
       v-model="show"
       width="600"
+      title="搜索功能"
       @close="close"
       @opened="onDialogOpened"
       :show-close="false"
@@ -11,6 +12,7 @@
     >
       <el-input
         v-model="search"
+        aria-label="搜索功能名称或路径"
         ref="headerSearchSelectRef"
         size="large"
         @input="querySearch"
@@ -33,7 +35,11 @@
           <template v-if="options.length > 0">
             <div
               class="search-item"
-              tabindex="1"
+              tabindex="0"
+              role="button"
+              @click="change(item)"
+              @keydown.enter.prevent="change(item)"
+              @keydown.space.prevent="change(item)"
               v-for="(item, index) in options"
               :key="item.path"
               :class="{ 'is-active': index === activeIndex }"
@@ -44,7 +50,7 @@
               <div class="left">
                 <svg-icon class="menu-icon" :icon-class="item.icon" />
               </div>
-              <div class="search-info" @click="change(item)">
+              <div class="search-info">
                 <div class="menu-title" v-html="highlightText(item.title.join(' / '))"></div>
                 <div class="menu-path" v-html="highlightText(item.path)"></div>
               </div>
@@ -246,6 +252,7 @@ watch(searchPool, (list) => {
 </script>
 
 <style lang='scss' scoped>
+.search-trigger { border: 0; background: transparent; color: inherit; cursor: pointer; padding: 0; }
 :deep(.el-dialog__header) {
   padding: 6px !important;
 }

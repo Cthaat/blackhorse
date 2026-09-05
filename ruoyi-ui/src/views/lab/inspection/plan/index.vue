@@ -1,5 +1,6 @@
 <template>
-  <div class="app-container">
+  <div class="app-container lab-page">
+    <div class="page-heading"><div><h1>巡检计划</h1><p>配置检查项目、执行周期与负责人，发布计划并生成巡检任务。</p></div></div>
     <el-alert v-if="optionsError" :title="optionsError" type="error" show-icon :closable="false" class="mb12" />
     <el-form v-show="showSearch" :model="query" inline>
       <el-form-item label="计划名称">
@@ -26,6 +27,8 @@
       </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="loadPlans" />
     </el-row>
+
+    <p class="lab-table-hint">左右滑动表格可查看完整信息与操作</p>
 
     <el-table v-loading="loading" :data="plans">
       <el-table-column label="计划名称" prop="planName" min-width="180" show-overflow-tooltip />
@@ -106,7 +109,7 @@
         </div>
         <el-table :data="form.items" border size="small">
           <el-table-column label="编码" width="150"><template #default="{ row }"><el-input v-model="row.itemCode" maxlength="32" /></template></el-table-column>
-          <el-table-column label="检查内容"><template #default="{ row }"><el-input v-model="row.content" maxlength="500" /></template></el-table-column>
+          <el-table-column label="检查内容" min-width="240"><template #default="{ row }"><el-input v-model="row.content" maxlength="500" /></template></el-table-column>
           <el-table-column label="排序" width="100"><template #default="{ row }"><el-input-number v-model="row.sortOrder" :min="0" controls-position="right" /></template></el-table-column>
           <el-table-column label="启用" width="80" align="center"><template #default="{ row }"><el-switch v-model="row.enabled" /></template></el-table-column>
           <el-table-column width="70"><template #default="{ $index }"><el-button link type="danger" @click="form.items.splice($index, 1)">删除</el-button></template></el-table-column>

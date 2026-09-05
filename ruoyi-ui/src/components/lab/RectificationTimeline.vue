@@ -19,12 +19,12 @@
             </div>
           </template>
           <p class="description">{{ round.description }}</p>
-          <el-descriptions :column="2" size="small" border>
+          <lab-descriptions :column="2" size="small" border>
             <el-descriptions-item label="提交人">{{ round.submitterId || '-' }}</el-descriptions-item>
             <el-descriptions-item label="复核人">{{ round.reviewerId || '-' }}</el-descriptions-item>
             <el-descriptions-item label="复核时间">{{ parseTime(round.reviewedAt) || '-' }}</el-descriptions-item>
             <el-descriptions-item label="复核意见">{{ round.reviewReason || '-' }}</el-descriptions-item>
-          </el-descriptions>
+          </lab-descriptions>
           <div v-if="$slots.actions" class="actions">
             <slot name="actions" :round="round" />
           </div>
@@ -57,4 +57,9 @@ function timelineType(result) {
 .round-header { display: flex; align-items: center; justify-content: space-between; font-weight: 600; }
 .description { margin: 0 0 14px; white-space: pre-wrap; line-height: 1.7; }
 .actions { display: flex; justify-content: flex-end; margin-top: 12px; }
+.rectification-timeline :deep(.el-timeline) { padding-left: 8px; }
+@media (max-width: 767px) {
+  .round-header { flex-wrap: wrap; gap: 8px; }
+  .rectification-timeline :deep(.el-card__body) { padding: 12px !important; }
+}
 </style>

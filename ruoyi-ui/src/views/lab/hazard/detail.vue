@@ -1,17 +1,17 @@
 <template>
-  <div class="app-container" v-loading="loading">
-    <el-page-header content="隐患整改详情" @back="router.back()" />
+  <div class="app-container lab-page" v-loading="loading">
+    <el-page-header class="lab-detail-header" @back="router.back()"><template #content><h1>隐患整改详情</h1></template></el-page-header>
     <el-card v-if="hazard" shadow="never" class="detail-card">
       <template #header><div class="header"><span>{{ hazard.hazardNo }}</span><el-tag :type="statusType(hazard.status)">{{ statusText(hazard.status) }}</el-tag></div></template>
-      <el-descriptions :column="3" border>
+      <lab-descriptions :column="3" border>
         <el-descriptions-item label="隐患ID">{{ hazard.id }}</el-descriptions-item>
-        <el-descriptions-item label="目标">{{ hazard.targetType }} #{{ hazard.targetId }}</el-descriptions-item>
-        <el-descriptions-item label="级别">{{ hazard.severity }}</el-descriptions-item>
+        <el-descriptions-item label="目标">{{ hazard.targetType === 'LABORATORY' ? '实验室' : '设备' }} #{{ hazard.targetId }}</el-descriptions-item>
+        <el-descriptions-item label="级别">{{ { LOW: '低', MEDIUM: '中', HIGH: '高', MAJOR: '重大' }[hazard.severity] || hazard.severity }}</el-descriptions-item>
         <el-descriptions-item label="责任人ID">{{ hazard.ownerId }}</el-descriptions-item>
         <el-descriptions-item label="整改期限">{{ parseTime(hazard.deadline) }}</el-descriptions-item>
         <el-descriptions-item label="是否超期">{{ hazard.overdueFlag === '1' ? '是' : '否' }}</el-descriptions-item>
         <el-descriptions-item label="整改要求" :span="3"><div class="pre-wrap">{{ hazard.requirements }}</div></el-descriptions-item>
-      </el-descriptions>
+      </lab-descriptions>
       <div class="commands">
         <el-button v-if="hazard.status === 'PENDING_RECTIFICATION'" type="primary" v-hasPermi="['lab:hazard:rectify']" :loading="submitting" @click="beginRectification">开始整改</el-button>
         <el-button v-if="hazard.status === 'RECTIFYING'" type="success" v-hasPermi="['lab:hazard:rectify']" @click="submitDialog = true">提交复核</el-button>

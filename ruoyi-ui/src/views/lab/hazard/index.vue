@@ -1,5 +1,6 @@
 <template>
-  <div class="app-container">
+  <div class="app-container lab-page">
+    <div class="page-heading"><div><h1>安全隐患</h1><p>登记风险、跟踪整改和复核销号，形成可追溯的安全管理记录。</p></div></div>
     <el-alert v-if="optionsError" :title="optionsError" type="error" show-icon :closable="false" class="mb12" />
     <el-alert v-if="listError" :title="listError" type="error" show-icon :closable="false" class="mb12">
       <template #default><el-button link type="primary" @click="loadHazards">重新加载</el-button></template>
@@ -26,6 +27,7 @@
       <el-col :span="1.5"><el-button type="primary" plain icon="Plus" v-hasPermi="['lab:hazard:add']" @click="openCreate">登记隐患</el-button></el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="loadHazards" />
     </el-row>
+    <p class="lab-table-hint">左右滑动表格可查看完整信息与操作</p>
     <el-table v-loading="loading" :data="hazards" row-key="id">
       <el-table-column label="隐患编号" prop="hazardNo" min-width="210" />
       <el-table-column label="目标" min-width="180"><template #default="{ row }">{{ targetText(row) }}</template></el-table-column>

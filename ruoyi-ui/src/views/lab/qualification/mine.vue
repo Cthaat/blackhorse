@@ -1,5 +1,6 @@
 <template>
-  <div class="app-container">
+  <div class="app-container lab-page">
+    <div class="page-heading"><div><h1>我的准入资格</h1><p>查看你的授权范围、有效期限和相关凭证，使用设备前请确认资格有效。</p></div></div>
     <el-card shadow="never" class="summary-card">
       <div class="summary-content">
         <div>
@@ -13,6 +14,8 @@
     <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon :closable="false" class="mb16">
       <template #default><el-button link type="primary" @click="getList">重新加载</el-button></template>
     </el-alert>
+
+    <p class="lab-table-hint">左右滑动表格可查看完整信息与操作</p>
 
     <el-table v-loading="loading" :data="qualificationList" @row-dblclick="handleDetail">
       <el-table-column label="适用范围" width="140">
@@ -58,7 +61,7 @@
       </el-alert>
       <div v-loading="detailLoading" class="detail-body">
         <template v-if="detail">
-          <el-descriptions :column="2" border class="mb20">
+          <lab-descriptions :column="2" border class="mb20">
             <el-descriptions-item label="当前状态">
               <el-tag :type="statusMeta(detail.status).type">{{ statusMeta(detail.status).label }}</el-tag>
             </el-descriptions-item>
@@ -71,7 +74,7 @@
             <el-descriptions-item label="撤销时间">{{ parseTime(detail.revokedAt) || '—' }}</el-descriptions-item>
             <el-descriptions-item label="创建时间">{{ parseTime(detail.createTime) }}</el-descriptions-item>
             <el-descriptions-item label="撤销原因" :span="2">{{ detail.revokeReason || '—' }}</el-descriptions-item>
-          </el-descriptions>
+          </lab-descriptions>
           <el-tabs>
             <el-tab-pane v-if="canReadAttachment" label="附件">
               <attachment-panel business-type="QUALIFICATION" :business-id="detail.id" :can-manage="false" />

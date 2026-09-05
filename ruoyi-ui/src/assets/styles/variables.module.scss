@@ -10,29 +10,29 @@ $panGreen: #30B08F;
 
 // 默认主题变量
 $menuText: #bfcbd9;
-$menuActiveText: #409eff;
-$menuBg: #1a1f2e;
+$menuActiveText: #0f766e;
+$menuBg: #132b3a;
 $menuHover: #263445;
 
 // 浅色主题theme-light
 $menuLightBg: #ffffff;
 $menuLightHover: #f0f1f5;
 $menuLightText: #303133;
-$menuLightActiveText: #409EFF;
+$menuLightActiveText: #0f766e;
 
 // 基础变量
-$base-sidebar-width: 200px;
-$sideBarWidth: 200px;
+$base-sidebar-width: 232px;
+$sideBarWidth: 232px;
 
 // 菜单暗色变量
 $base-menu-color: rgba(255,255,255,.65);
 $base-menu-color-active: #ffffff;
-$base-menu-background: #1a1f2e;
-$base-sub-menu-background: #141824;
+$base-menu-background: #132b3a;
+$base-sub-menu-background: #102330;
 $base-sub-menu-hover: rgba(255,255,255,.06);
 
 // 组件变量
-$--color-primary: #409EFF;
+$--color-primary: #0f766e;
 $--color-success: #67C23A;
 $--color-warning: #E6A23C;
 $--color-danger: #F56C6C;
@@ -227,11 +227,11 @@ html.dark {
     &:not(.tags-view-container--chrome) .tags-view-wrapper .tags-view-item.active {
       background-color: var(--tags-card-active-bg) !important;
       border-color: var(--tags-card-active-border) !important;
-      color: var(--current-color, #409eff) !important;
+      color: var(--current-color, #0f766e) !important;
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
 
       &::before {
-        background: var(--current-color, #409eff) !important;
+        background: var(--current-color, #0f766e) !important;
       }
     }
   }

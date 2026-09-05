@@ -8,6 +8,7 @@ import 'element-plus/theme-chalk/dark/css-vars.css'
 import locale from 'element-plus/es/locale/lang/zh-cn'
 
 import '@/assets/styles/index.scss' // global css
+import '@/assets/styles/lab-workspace.scss'
 
 import App from './App'
 import store from './store'
@@ -31,6 +32,7 @@ import { parseTime, resetForm, addDateRange, handleTree, selectDictLabel, select
 
 // 分页组件
 import Pagination from '@/components/Pagination'
+import LabDescriptions from '@/components/lab/Descriptions.vue'
 // 自定义表格工具组件
 import RightToolbar from '@/components/RightToolbar'
 // 文件上传组件
@@ -58,6 +60,7 @@ app.config.globalProperties.selectDictLabels = selectDictLabels
 // 全局组件挂载
 app.component('DictTag', DictTag)
 app.component('Pagination', Pagination)
+app.component('LabDescriptions', LabDescriptions)
 app.component('FileUpload', FileUpload)
 app.component('ImageUpload', ImageUpload)
 app.component('ImagePreview', ImagePreview)

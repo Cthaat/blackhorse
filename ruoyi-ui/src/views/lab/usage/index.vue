@@ -1,5 +1,5 @@
 <template>
-  <div class="app-container usage-page">
+  <div class="app-container lab-page usage-page">
     <div class="page-heading">
       <div>
         <h1>设备领用归还</h1>
@@ -42,12 +42,14 @@
           办理领用
         </el-button>
       </el-col>
-      <right-toolbar :show-search="false" @queryTable="getList" />
+      <right-toolbar :search="false" @queryTable="getList" />
     </el-row>
 
     <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon :closable="false" class="mb16">
       <template #default><el-button link type="primary" @click="getList">重新加载</el-button></template>
     </el-alert>
+
+    <p class="lab-table-hint">左右滑动表格可查看完整信息与操作</p>
 
     <el-table v-loading="loading" :data="rows" row-key="id">
       <el-table-column label="记录 ID" prop="id" min-width="118" />
@@ -146,7 +148,7 @@
           <template #default><el-button link type="primary" @click="loadDetail">重新加载</el-button></template>
         </el-alert>
         <el-empty v-else-if="!detailLoading && !detail" description="未找到领用记录" />
-        <el-descriptions v-else-if="detail" :column="2" border>
+        <lab-descriptions v-else-if="detail" :column="2" border>
           <el-descriptions-item label="记录 ID">{{ detail.id }}</el-descriptions-item>
           <el-descriptions-item label="预约 ID">{{ detail.reservationId }}</el-descriptions-item>
           <el-descriptions-item label="预约编号">{{ detail.reservationNo }}</el-descriptions-item>
@@ -159,7 +161,7 @@
           <el-descriptions-item label="归还状况">{{ conditionLabel(detail.returnCondition) }}</el-descriptions-item>
           <el-descriptions-item label="关联维修 ID">{{ detail.repairOrderId || '-' }}</el-descriptions-item>
           <el-descriptions-item label="归还备注" :span="2">{{ detail.returnNote || '-' }}</el-descriptions-item>
-        </el-descriptions>
+        </lab-descriptions>
       </div>
     </el-drawer>
   </div>
