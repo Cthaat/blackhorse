@@ -42,6 +42,7 @@ public class RepairOrderServiceImpl implements RepairOrderService
     private final LabStatusHistoryService historyService;
     private final RepairNumberGenerator numberGenerator;
     private final Clock clock;
+    private final com.ruoyi.lab.maintenance.MaintenanceCompletionService maintenance;
 
     public RepairOrderServiceImpl(LabRepairOrderMapper repairMapper,
             LabDeviceMapper deviceMapper, LabUsageRecordMapper usageMapper,
@@ -49,7 +50,8 @@ public class RepairOrderServiceImpl implements RepairOrderService
             RepairWorkerDirectory workerDirectory,
             DeviceAvailabilityService availabilityService,
             LabStatusHistoryService historyService,
-            RepairNumberGenerator numberGenerator, Clock clock)
+            RepairNumberGenerator numberGenerator, Clock clock,
+            com.ruoyi.lab.maintenance.MaintenanceCompletionService maintenance)
     {
         this.repairMapper = repairMapper;
         this.deviceMapper = deviceMapper;
@@ -60,6 +62,26 @@ public class RepairOrderServiceImpl implements RepairOrderService
         this.historyService = historyService;
         this.numberGenerator = numberGenerator;
         this.clock = clock;
+        this.maintenance = maintenance;
+    }
+
+    @Override
+    @Transactional(propagation=Propagation.MANDATORY)
+    public LabRepairOrder openMaintenance(Long deviceId,Long cycleId,RepairSourceType source,String description,Long actorId)
+    {
+        if (source!=RepairSourceType.MAINTENANCE && source!=RepairSourceType.CALIBRATION) throw validation("维护来源无效");
+        requirePositive(cycleId,"维护周期编号无效");
+        LabDevice device=requireDeviceForUpdate(deviceId);
+        objectPermissionService.assertDeviceManageable(deviceId);
+        if (!usageMapper.selectUnreturnedIdsByDeviceIdForUpdate(deviceId).isEmpty()) throw illegalState("设备仍有未归还使用记录");
+        if (device.getStatus()!=DeviceStatus.AVAILABLE && device.getStatus()!=DeviceStatus.MAINTENANCE)
+            throw illegalState("设备当前不能进入计划维护");
+        // Strict creation must never relabel/reuse an unrelated fault order.
+        LabRepairOrder order=openOrGet(deviceId,source,cycleId,actorId,
+                requiredText(description,1000,"维护说明不能为空"),"显式启动计划维护或校准",false);
+        requireOne(deviceMapper.updateStatusConditionally(deviceId,device.getStatus().name(),DeviceStatus.FAULT.name()));
+        historyService.append("DEVICE",deviceId,device.getStatus().name(),DeviceStatus.FAULT.name(),actorId,"已启动计划维护，等待维修处理");
+        return order;
     }
 
     @Override
@@ -233,6 +255,7 @@ public class RepairOrderServiceImpl implements RepairOrderService
                 target.name(), actorId, reason);
         if (command.passed())
         {
+            maintenance.complete(locked,command.reportAttachmentId(),actorId,now);
             availabilityService.restoreAfterRepair(device.getId(), actorId);
         }
         return RepairOrderVo.from(requireOrder(id));
@@ -241,9 +264,16 @@ public class RepairOrderServiceImpl implements RepairOrderService
     private LabRepairOrder openOrGet(long deviceId, RepairSourceType sourceType,
             Long sourceId, long reporterId, String description, String historyReason)
     {
+        return openOrGet(deviceId,sourceType,sourceId,reporterId,description,historyReason,true);
+    }
+
+    private LabRepairOrder openOrGet(long deviceId, RepairSourceType sourceType,
+            Long sourceId, long reporterId, String description, String historyReason,boolean reuseExisting)
+    {
         LabRepairOrder open = repairMapper.selectOpenByDeviceIdForUpdate(deviceId);
         if (open != null)
         {
+            if (!reuseExisting) throw new LabBusinessException(LabErrorCode.LAB_REPAIR_ALREADY_OPEN,"设备已有开放维修工单，不能启动另一维护周期");
             return open;
         }
         LocalDateTime now = LocalDateTime.now(clock);
@@ -270,6 +300,7 @@ public class RepairOrderServiceImpl implements RepairOrderService
             LabRepairOrder concurrent = repairMapper.selectOpenByDeviceIdForUpdate(deviceId);
             if (concurrent != null)
             {
+                if (!reuseExisting) throw new LabBusinessException(LabErrorCode.LAB_REPAIR_ALREADY_OPEN,"设备已有开放维修工单");
                 return concurrent;
             }
             throw new LabBusinessException(LabErrorCode.LAB_REPAIR_ALREADY_OPEN,

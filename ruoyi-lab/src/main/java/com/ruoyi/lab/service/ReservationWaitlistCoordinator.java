@@ -30,12 +30,13 @@ public class ReservationWaitlistCoordinator
     private final LabNotificationDeliveryService delivery;
     private final Clock clock;
     private final com.ruoyi.lab.restriction.RestrictionGuard restrictions;
+    private final com.ruoyi.lab.maintenance.MaintenanceWindowGuard maintenance;
 
     public ReservationWaitlistCoordinator(LabReservationWaitlistMapper queue, LabDeviceMapper devices,
             LabLaboratoryMapper laboratories, LabReservationMapper reservations, ReservationPolicy policy,
             ReservationRuleService rules, LabQualificationGuard qualifications, LabHazardBlocker hazards,
             LabUserDirectory users, LabNotificationDeliveryService delivery, Clock clock,
-            com.ruoyi.lab.restriction.RestrictionGuard restrictions)
+            com.ruoyi.lab.restriction.RestrictionGuard restrictions,com.ruoyi.lab.maintenance.MaintenanceWindowGuard maintenance)
     {
         this.queue = queue;
         this.devices = devices;
@@ -49,6 +50,7 @@ public class ReservationWaitlistCoordinator
         this.delivery = delivery;
         this.clock = clock;
         this.restrictions = restrictions;
+        this.maintenance = maintenance;
     }
 
     public List<Long> dueDevices() { return queue.dueDevices(); }
@@ -102,6 +104,7 @@ public class ReservationWaitlistCoordinator
 
     public void validateCandidate(LabDevice device, LabReservationWaitlist entry)
     {
+        maintenance.assertAvailable(device.getId(),entry.getStartTime(),entry.getEndTime());
         restrictions.assertAllowed(entry.getApplicantId(), device.getLaboratoryId());
         policy.validate(request(entry));
         rules.validateForApply(device.getId(), entry.getStartTime(), entry.getEndTime());

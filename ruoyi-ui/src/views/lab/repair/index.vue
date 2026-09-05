@@ -118,7 +118,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="acceptOpen" title="维修验收" width="620px" append-to-body :close-on-click-modal="false">
+    <el-dialog v-model="acceptOpen" title="维修／维护验收" width="620px" append-to-body :close-on-click-modal="false" :show-close="!submitting" :close-on-press-escape="!submitting">
       <el-alert v-if="acceptError" :title="acceptError" type="error" show-icon :closable="false" class="mb16" />
       <el-form ref="acceptRef" :model="acceptForm" :rules="acceptRules" label-width="96px">
         <el-form-item label="验收结论" prop="passed">
@@ -130,10 +130,14 @@
         <el-form-item label="验收说明" prop="reason">
           <el-input v-model="acceptForm.reason" type="textarea" :rows="4" maxlength="1000" show-word-limit placeholder="请说明验收依据或退回原因" />
         </el-form-item>
+        <el-form-item v-if="acceptSource === 'CALIBRATION' && acceptForm.passed" label="校准报告">
+          <el-select v-model="acceptForm.reportAttachmentId" :loading="reportLoading" :disabled="submitting" placeholder="请选择本工单私有报告" aria-label="校准报告"><el-option v-for="file in reportFiles" :key="file.id" :value="String(file.id)" :label="file.originalName" /></el-select>
+          <p>没有报告时，请先在工单详情上传报告再打开验收。</p>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button :disabled="submitting" @click="acceptOpen = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="submitAccept">确认验收</el-button>
+        <el-button type="primary" :loading="submitting" :disabled="reportLoading" @click="submitAccept">确认验收</el-button>
       </template>
     </el-dialog>
 
@@ -155,6 +159,7 @@ import {
   submitRepairResult
 } from '@/api/lab/repair'
 import { listLabUserOptions } from '@/api/lab/options'
+import { listAttachment } from '@/api/lab/attachment'
 
 const { proxy } = getCurrentInstance()
 const route = useRoute()
@@ -193,7 +198,9 @@ const assignRules = {
 const acceptOpen = ref(false)
 const acceptId = ref('')
 const acceptError = ref('')
-const acceptForm = reactive({ passed: true, reason: '' })
+const acceptForm = reactive({ passed: true, reason: '', reportAttachmentId: '' })
+const acceptSource = ref(''), reportFiles = ref([]), reportLoading = ref(false)
+let acceptSequence = 0
 const acceptRules = {
   passed: [{ required: true, message: '请选择验收结论', trigger: 'change' }],
   reason: [{ required: true, whitespace: true, message: '请填写验收说明', trigger: 'blur' }]
@@ -381,25 +388,37 @@ async function handleSubmitResult(row) {
   }
 }
 
-function openAccept(row) {
+async function openAccept(row) {
+  if (submitting.value) return
+  const current = ++acceptSequence
   acceptId.value = String(row.id)
+  acceptSource.value = row.sourceType
+  acceptForm.reportAttachmentId = ''
+  reportFiles.value = []
   acceptForm.passed = true
   acceptForm.reason = ''
   acceptError.value = ''
   acceptOpen.value = true
   nextTick(() => acceptRef.value?.clearValidate())
+  reportLoading.value = row.sourceType === 'CALIBRATION'
+  if (reportLoading.value) {
+    try { const result = await listAttachment('REPAIR_ORDER', String(row.id)); if (current === acceptSequence) reportFiles.value = result.data }
+    catch (failure) { if (current === acceptSequence) acceptError.value = messageOf(failure, '校准报告选项加载失败') }
+    finally { if (current === acceptSequence) reportLoading.value = false }
+  }
 }
 
 async function submitAccept() {
-  if (!await acceptRef.value?.validate().catch(() => false)) return
+  if (submitting.value || reportLoading.value) return
+  const id = acceptId.value, passed = acceptForm.passed
+  const data = { passed, reason: acceptForm.reason.trim(), reportAttachmentId: acceptSource.value === 'CALIBRATION' && passed ? acceptForm.reportAttachmentId : undefined }
+  if (acceptSource.value === 'CALIBRATION' && passed && !data.reportAttachmentId) { acceptError.value = '校准通过前请选择本工单报告'; return }
   submitting.value = true
   acceptError.value = ''
   try {
-    await acceptRepair(acceptId.value, {
-      passed: acceptForm.passed,
-      reason: acceptForm.reason.trim()
-    })
-    proxy.$modal.msgSuccess(acceptForm.passed ? '维修验收通过' : '维修已退回处理')
+    if (!await acceptRef.value?.validate().catch(() => false)) return
+    await acceptRepair(id, data)
+    proxy.$modal.msgSuccess(passed ? '验收通过' : '已退回处理')
     acceptOpen.value = false
     await getList()
   } catch (error) {
@@ -410,7 +429,7 @@ async function submitAccept() {
 }
 
 function sourceLabel(source) {
-  return { ACTIVE_REPORT: '主动报修', ABNORMAL_RETURN: '异常归还' }[source] ?? source ?? '-'
+  return { ACTIVE_REPORT: '主动报修', ABNORMAL_RETURN: '异常归还', MAINTENANCE: '预防性维护', CALIBRATION: '计量校准' }[source] ?? source ?? '-'
 }
 
 function formatDateTime(value) {

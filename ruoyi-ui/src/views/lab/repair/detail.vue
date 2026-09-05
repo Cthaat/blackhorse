@@ -47,13 +47,8 @@
 
         <section class="detail-section">
           <h3>相关附件</h3>
-          <el-empty v-if="!detail.attachments?.length" description="暂无附件" :image-size="64" />
-          <el-table v-else :data="detail.attachments" size="small" row-key="id">
-            <el-table-column label="文件名" prop="originalName" min-width="190" show-overflow-tooltip />
-            <el-table-column label="类型" prop="mimeType" min-width="130" show-overflow-tooltip />
-            <el-table-column label="大小" width="100"><template #default="scope">{{ formatSize(scope.row.size) }}</template></el-table-column>
-            <el-table-column label="上传时间" min-width="164"><template #default="scope">{{ formatDateTime(scope.row.createTime) }}</template></el-table-column>
-          </el-table>
+          <p v-if="detail.order.sourceType === 'CALIBRATION'">校准验收通过前需上传报告，并在验收表单中选择报告附件；验收后保留报告关联。</p>
+          <AttachmentPanel business-type="REPAIR_ORDER" :business-id="String(detail.order.id)" :can-manage="canManageAttachments" />
         </section>
       </template>
     </div>
@@ -63,6 +58,8 @@
 <script setup name="LabRepairDetail">
 import RepairTimeline from '@/components/lab/RepairTimeline.vue'
 import { getRepairOrder } from '@/api/lab/repair'
+import AttachmentPanel from '@/components/lab/AttachmentPanel.vue'
+import useUserStore from '@/store/modules/user'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -74,6 +71,13 @@ const emit = defineEmits(['update:modelValue'])
 const loading = ref(false)
 const errorMessage = ref('')
 const detail = ref()
+const user = useUserStore()
+const canManageAttachments = computed(() => {
+  const order = detail.value?.order
+  return !!order && order.status !== 'CLOSED' && (user.roles.includes('lab_manager')
+    || (String(order.assigneeId) === String(user.id) && ['WAIT_REPAIR', 'IN_PROGRESS'].includes(order.status)))
+})
+let detailSequence = 0
 
 function workerLabel(id) {
   if (!id) return '-'
@@ -82,16 +86,19 @@ function workerLabel(id) {
 
 async function loadDetail() {
   if (!props.repairId) return
+  const current = ++detailSequence
   loading.value = true
+  detail.value = undefined
   errorMessage.value = ''
   try {
     const response = await getRepairOrder(String(props.repairId))
-    detail.value = response.data
+    if (current === detailSequence) detail.value = response.data
   } catch (error) {
+    if (current !== detailSequence) return
     detail.value = undefined
     errorMessage.value = error?.response?.data?.msg ?? error?.data?.msg ?? error?.message ?? '维修详情加载失败'
   } finally {
-    loading.value = false
+    if (current === detailSequence) loading.value = false
   }
 }
 
@@ -110,7 +117,7 @@ function statusType(status) {
 }
 
 function sourceLabel(source) {
-  return { ACTIVE_REPORT: '主动报修', ABNORMAL_RETURN: '异常归还' }[source] ?? source ?? '-'
+  return { ACTIVE_REPORT: '主动报修', ABNORMAL_RETURN: '异常归还', MAINTENANCE: '预防性维护', CALIBRATION: '计量校准' }[source] ?? source ?? '-'
 }
 
 function acceptanceLabel(result) {
@@ -121,17 +128,11 @@ function formatDateTime(value) {
   return value ? String(value).replace('T', ' ').slice(0, 19) : '-'
 }
 
-function formatSize(value) {
-  const size = typeof value === 'number' ? value : parseFloat(value)
-  if (!Number.isFinite(size)) return '-'
-  if (size < 1024) return `${size} B`
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
-  return `${(size / 1024 / 1024).toFixed(1)} MB`
-}
-
 watch(() => [props.modelValue, String(props.repairId ?? '')], ([visible]) => {
   if (visible) loadDetail()
+  else ++detailSequence
 }, { immediate: true })
+onBeforeUnmount(() => ++detailSequence)
 </script>
 
 <style scoped>

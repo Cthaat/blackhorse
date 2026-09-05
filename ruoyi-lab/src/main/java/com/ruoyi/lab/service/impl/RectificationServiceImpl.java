@@ -39,12 +39,13 @@ public class RectificationServiceImpl implements RectificationService
     private final LabObjectPermissionService permissionService;
     private final LabStatusHistoryService historyService;
     private final Clock clock;
+    private final com.ruoyi.lab.maintenance.MaintenanceWindowGuard maintenance;
 
     public RectificationServiceImpl(LabHazardMapper hazardMapper,
             LabRectificationMapper rectificationMapper, LabDeviceMapper deviceMapper,
             LabLaboratoryMapper laboratoryMapper, HazardAffectedDeviceResolver resolver,
             LabObjectPermissionService permissionService, LabStatusHistoryService historyService,
-            Clock clock)
+            Clock clock, com.ruoyi.lab.maintenance.MaintenanceWindowGuard maintenance)
     {
         this.hazardMapper = hazardMapper;
         this.rectificationMapper = rectificationMapper;
@@ -54,6 +55,7 @@ public class RectificationServiceImpl implements RectificationService
         this.permissionService = permissionService;
         this.historyService = historyService;
         this.clock = clock;
+        this.maintenance = maintenance;
     }
 
     @Override
@@ -134,6 +136,7 @@ public class RectificationServiceImpl implements RectificationService
             if (laboratory == null || laboratory.getStatus() != LaboratoryStatus.ENABLED
                     || hazardMapper.countOpenUsageForDevice(deviceId) > 0
                     || hazardMapper.countOpenRepairForDevice(deviceId) > 0
+                    || maintenance.blocksNow(deviceId)
                     || !hazardMapper.selectOpenMajorHazardIdsForDeviceForUpdate(deviceId).isEmpty())
                 continue;
             if (deviceMapper.updateStatusConditionally(deviceId, DeviceStatus.MAINTENANCE.name(),

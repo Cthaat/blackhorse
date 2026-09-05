@@ -4,6 +4,7 @@
     <el-button v-hasPermi="['lab:reservation:apply']" type="primary" @click="go('/lab/reservation/apply')">预约设备</el-button>
     <el-button v-hasPermi="['lab:repair:report']" @click="go('/lab/repair')">报告故障</el-button>
     <el-button v-hasPermi="['lab:usage:checkout', 'lab:usage:return']" @click="go('/lab/usage', { assetNo: device.assetNo })">领用 / 归还</el-button>
+    <el-button v-hasPermi="['lab:maintenance:list']" @click="go('/lab/maintenance')">维护／校准档案</el-button>
     <AssetLabels ref="labels" />
   </div>
 </template>

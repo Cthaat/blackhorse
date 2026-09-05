@@ -10,6 +10,9 @@ import com.ruoyi.lab.vo.RepairOrderVo;
 
 public interface RepairOrderService
 {
+    LabRepairOrder openMaintenance(Long deviceId,Long cycleId,
+            com.ruoyi.lab.domain.RepairSourceType source,String description,Long actorId);
+
     LabRepairOrder openOrGetFromAbnormalReturn(LabUsageRecord usage,
             String description, Long reporterId);
 

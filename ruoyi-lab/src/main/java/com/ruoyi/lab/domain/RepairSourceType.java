@@ -4,5 +4,7 @@ package com.ruoyi.lab.domain;
 public enum RepairSourceType
 {
     ACTIVE_REPORT,
-    ABNORMAL_RETURN
+    ABNORMAL_RETURN,
+    MAINTENANCE,
+    CALIBRATION
 }

@@ -76,6 +76,7 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
     private final ReservationWaitlistCoordinator waitlist;
     private final LabReservationWaitlistMapper waitlistMapper;
     private final com.ruoyi.lab.restriction.RestrictionGuard restrictions;
+    private final com.ruoyi.lab.maintenance.MaintenanceWindowGuard maintenance;
 
     public ReservationCommandServiceImpl(LabReservationMapper reservationMapper,
             LabDeviceMapper deviceMapper, LabLaboratoryMapper laboratoryMapper,
@@ -85,7 +86,8 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
             ReservationRequestHasher requestHasher, ReservationStateMachine stateMachine,
             LabIdempotencyStore idempotencyStore, Clock clock, LabUserDirectory userDirectory,
             ReservationRuleService ruleService, ReservationWaitlistCoordinator waitlist,
-            LabReservationWaitlistMapper waitlistMapper, com.ruoyi.lab.restriction.RestrictionGuard restrictions)
+            LabReservationWaitlistMapper waitlistMapper, com.ruoyi.lab.restriction.RestrictionGuard restrictions,
+            com.ruoyi.lab.maintenance.MaintenanceWindowGuard maintenance)
     {
         this.reservationMapper = reservationMapper;
         this.deviceMapper = deviceMapper;
@@ -104,6 +106,7 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
         this.waitlist = waitlist;
         this.waitlistMapper = waitlistMapper;
         this.restrictions = restrictions;
+        this.maintenance = maintenance;
     }
 
     @Override
@@ -188,6 +191,7 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
         }
 
         assertReservable(device, applicantId, validated.startTime());
+        maintenance.assertAvailable(device.getId(),validated.startTime(),validated.endTime());
         var ruleSnapshot = ruleService.validateForApply(device.getId(), validated.startTime(), validated.endTime());
         waitlist.reconcileLocked(device);
         if (claimingWaitlistId != null)
@@ -282,6 +286,7 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
         String reason = requireReason(command.getReason());
         assertReservable(locked.device(), locked.reservation().getApplicantId(),
                 locked.reservation().getStartTime());
+        maintenance.assertAvailable(locked.device().getId(),locked.reservation().getStartTime(),locked.reservation().getEndTime());
         if (reservationMapper.countActiveOverlaps(locked.device().getId(),
                 locked.reservation().getStartTime(), locked.reservation().getEndTime(),
                 locked.reservation().getId()) > 0)

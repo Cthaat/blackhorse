@@ -66,7 +66,7 @@
               <el-table-column label="结束时间" min-width="180">
                 <template #default="scope">{{ parseTime(scope.row.endTime) }}</template>
               </el-table-column>
-              <el-table-column label="预约状态" prop="reservationStatus" width="130" />
+              <el-table-column label="占用状态" width="130"><template #default="{ row }">{{ ({ MAINTENANCE_WINDOW: '维护停用窗口', WAITLIST_HOLD: '候补邀请保留', PENDING: '待审批', APPROVED: '已批准', CHECKED_OUT: '使用中' })[row.reservationStatus] || row.reservationStatus }}</template></el-table-column>
               <template #empty>
                 <el-empty description="所选时间范围内暂无占用" :image-size="72" />
               </template>

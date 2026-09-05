@@ -18,7 +18,7 @@
       <el-table :data="calendar.occupied" empty-text="所选日期内暂无占用记录">
         <el-table-column label="开始" min-width="180"><template #default="{ row }">{{ timeText(row.startTime) }}</template></el-table-column>
         <el-table-column label="结束" min-width="180"><template #default="{ row }">{{ timeText(row.endTime) }}</template></el-table-column>
-        <el-table-column label="占用类型" min-width="120"><template #default="{ row }">{{ row.reservationStatus === 'WAITLIST_HOLD' ? '候补邀请保留' : '预约占用' }}</template></el-table-column>
+        <el-table-column label="占用类型" min-width="120"><template #default="{ row }">{{ row.reservationStatus === 'MAINTENANCE_WINDOW' ? '维护停用窗口' : row.reservationStatus === 'WAITLIST_HOLD' ? '候补邀请保留' : '预约占用' }}</template></el-table-column>
       </el-table>
     </template>
   </section>

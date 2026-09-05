@@ -27,11 +27,12 @@ public class DeviceAvailabilityServiceImpl implements DeviceAvailabilityService
     private final LabRepairOrderMapper repairMapper;
     private final LabHazardBlocker hazardBlocker;
     private final LabStatusHistoryService historyService;
+    private final com.ruoyi.lab.maintenance.MaintenanceWindowGuard maintenance;
 
     public DeviceAvailabilityServiceImpl(LabDeviceMapper deviceMapper,
             LabLaboratoryMapper laboratoryMapper, LabUsageRecordMapper usageMapper,
             LabRepairOrderMapper repairMapper, LabHazardBlocker hazardBlocker,
-            LabStatusHistoryService historyService)
+            LabStatusHistoryService historyService,com.ruoyi.lab.maintenance.MaintenanceWindowGuard maintenance)
     {
         this.deviceMapper = deviceMapper;
         this.laboratoryMapper = laboratoryMapper;
@@ -39,6 +40,7 @@ public class DeviceAvailabilityServiceImpl implements DeviceAvailabilityService
         this.repairMapper = repairMapper;
         this.hazardBlocker = hazardBlocker;
         this.historyService = historyService;
+        this.maintenance = maintenance;
     }
 
     @Override
@@ -81,6 +83,7 @@ public class DeviceAvailabilityServiceImpl implements DeviceAvailabilityService
         if (laboratory == null || laboratory.getStatus() != LaboratoryStatus.ENABLED
                 || !usageMapper.selectUnreturnedIdsByDeviceIdForUpdate(deviceId).isEmpty()
                 || !repairMapper.selectOpenIdsByDeviceIdForUpdate(deviceId).isEmpty()
+                || maintenance.blocksNow(deviceId)
                 || hazardBlocker.hasOpenMajorHazard(deviceId))
         {
             return;

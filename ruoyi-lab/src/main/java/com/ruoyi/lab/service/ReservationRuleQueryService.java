@@ -28,10 +28,12 @@ public class ReservationRuleQueryService
     private final LabObjectPermissionService permissions;
     private final Clock clock;
     private final LabReservationWaitlistMapper waitlist;
+    private final com.ruoyi.lab.mapper.LabMaintenanceMapper maintenance;
 
     public ReservationRuleQueryService(ReservationRuleService rules, ReservationPolicy policy,
             LabReservationMapper reservations, LabReservationRuleMapper ruleMapper,
-            LabObjectPermissionService permissions, Clock clock, LabReservationWaitlistMapper waitlist)
+            LabObjectPermissionService permissions, Clock clock, LabReservationWaitlistMapper waitlist,
+            com.ruoyi.lab.mapper.LabMaintenanceMapper maintenance)
     {
         this.rules = rules;
         this.policy = policy;
@@ -40,6 +42,7 @@ public class ReservationRuleQueryService
         this.permissions = permissions;
         this.clock = clock;
         this.waitlist = waitlist;
+        this.maintenance = maintenance;
     }
 
     public CalendarView calendar(Long deviceId, LocalDate from, LocalDate to)
@@ -71,6 +74,7 @@ public class ReservationRuleQueryService
         List<OccupiedRangeVo> occupied = new ArrayList<>(reservations.selectOccupiedRanges(deviceId,
                 from.atStartOfDay(), to.plusDays(1).atStartOfDay()));
         occupied.addAll(waitlist.occupied(deviceId, from.atStartOfDay(), to.plusDays(1).atStartOfDay(), LocalDateTime.now(clock)));
+        occupied.addAll(maintenance.occupied(deviceId,from.atStartOfDay(),to.plusDays(1).atStartOfDay()));
         occupied.sort(java.util.Comparator.comparing(OccupiedRangeVo::startTime));
         return new CalendarView(rule, rules.globalLimits(), days, occupied);
     }
