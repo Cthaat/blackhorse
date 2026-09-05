@@ -613,3 +613,5 @@ Set-Location C:\LabLocal\nginx
 | `sql/upstream` | 上游 SQL 留档，不作为新环境部署导入入口 |
 
 更多背景可阅读[需求规格说明书](docs/requirements/lab-management-srs.md)、[总体设计](docs/superpowers/specs/2026-09-01-lab-management-design.md)和[前端本轮实施与验证范围](docs/superpowers/plans/2026-09-05-lab-workspace-ui.md)。部署操作以本文和当前代码配置为准，早期计划中的历史状态不代表当前实现状态。
+
+后续功能见[求职导向扩展需求池](docs/requirements/lab-extension-backlog.md)：面向 Java 后端实习／校招／初级岗位，包含原有 26 项与新增 16 项候选、前后端交付边界、验收目标和推荐开发顺序。当前建议先深化预约规则／候补与业务追溯，再做可靠投递、异步导入导出和可观测性。需求池条目不代表已经实现，也不要求全部完成后才能用于求职展示。
