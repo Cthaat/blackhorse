@@ -36,6 +36,7 @@ public class TraceIdFilter extends OncePerRequestFilter
             throws ServletException, IOException
     {
         String traceId = resolveTraceId(request);
+        String previousTraceId = MDC.get(MDC_KEY);
         request.setAttribute(TRACE_ID_ATTRIBUTE, traceId);
         MDC.put(MDC_KEY, traceId);
         response.setHeader(TRACE_ID_HEADER, traceId);
@@ -45,7 +46,8 @@ public class TraceIdFilter extends OncePerRequestFilter
         }
         finally
         {
-            MDC.remove(MDC_KEY);
+            if (previousTraceId == null) MDC.remove(MDC_KEY);
+            else MDC.put(MDC_KEY, previousTraceId);
         }
     }
 

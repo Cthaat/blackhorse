@@ -22,10 +22,12 @@
 </template>
 <script setup>
 import { reactive, ref, onMounted, onBeforeUnmount } from 'vue'
+import { useRoute } from 'vue-router'
 import { listDeliveries } from '@/api/lab/messageCenter'
 import DeliveryDetail from './DeliveryDetail.vue'
 import { statuses } from './helpers'
 const query = reactive({ status: '', eventType: '', pageNum: 1, pageSize: 10 })
+const route = useRoute()
 const rows = ref([]), total = ref(0), loading = ref(false), error = ref(''), detailOpen = ref(false), selectedId = ref(null)
 let sequence = 0
 async function load() {
@@ -35,6 +37,10 @@ async function load() {
   finally { if (current === sequence) loading.value = false }
 }
 function filter() { query.pageNum = 1; load() }
-onMounted(load)
+onMounted(() => {
+  const id = route.query.deliveryId
+  if (typeof id === 'string' && /^[1-9]\d{0,18}$/.test(id)) { selectedId.value = id; detailOpen.value = true }
+  load()
+})
 onBeforeUnmount(() => sequence++)
 </script>
