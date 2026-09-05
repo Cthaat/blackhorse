@@ -44,7 +44,8 @@ class RepairAttachmentAuthorizationTest
     {
         authorizer = new LabAttachmentObjectAuthorizer(objectPermissionService,
                 dataScopeService, laboratoryMapper, deviceMapper, qualificationMapper,
-                hazardMapper, rectificationMapper, repairOrderMapper);
+                hazardMapper, rectificationMapper, repairOrderMapper,
+                org.mockito.Mockito.mock(com.ruoyi.lab.restriction.RestrictionService.class));
     }
 
     @Test

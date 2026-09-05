@@ -37,7 +37,8 @@ class NotificationExpectationResolverImplTest
         recipientMapper = mock(LabNotificationRecipientMapper.class);
         resolver = new NotificationExpectationResolverImpl(historyMapper, reservationMapper,
                 mock(LabRepairOrderMapper.class), mock(LabInspectionTaskMapper.class),
-                hazardMapper, mock(LabDeviceMapper.class), recipientMapper);
+                hazardMapper, mock(LabDeviceMapper.class), recipientMapper,
+                mock(com.ruoyi.lab.mapper.LabRestrictionMapper.class));
     }
 
     @Test

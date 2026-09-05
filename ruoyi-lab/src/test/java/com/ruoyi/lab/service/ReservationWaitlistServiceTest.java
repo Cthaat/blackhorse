@@ -40,7 +40,7 @@ class ReservationWaitlistServiceTest
         when(queue.byKey(9L, "same-key")).thenReturn(null, concurrent);
         when(queue.insert(any(LabReservationWaitlist.class))).thenThrow(collision);
         return new ReservationWaitlistService(queue, devices, permissions, policy, hasher, coordinator,
-                mock(ReservationCommandService.class), Clock.systemUTC());
+                mock(ReservationCommandService.class), Clock.systemUTC(), mock(com.ruoyi.lab.restriction.RestrictionGuard.class));
     }
 
     private LabReservationWaitlist concurrent(String hash)

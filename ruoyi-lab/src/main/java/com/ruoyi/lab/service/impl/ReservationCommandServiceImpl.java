@@ -75,6 +75,7 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
     private final ReservationRuleService ruleService;
     private final ReservationWaitlistCoordinator waitlist;
     private final LabReservationWaitlistMapper waitlistMapper;
+    private final com.ruoyi.lab.restriction.RestrictionGuard restrictions;
 
     public ReservationCommandServiceImpl(LabReservationMapper reservationMapper,
             LabDeviceMapper deviceMapper, LabLaboratoryMapper laboratoryMapper,
@@ -84,7 +85,7 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
             ReservationRequestHasher requestHasher, ReservationStateMachine stateMachine,
             LabIdempotencyStore idempotencyStore, Clock clock, LabUserDirectory userDirectory,
             ReservationRuleService ruleService, ReservationWaitlistCoordinator waitlist,
-            LabReservationWaitlistMapper waitlistMapper)
+            LabReservationWaitlistMapper waitlistMapper, com.ruoyi.lab.restriction.RestrictionGuard restrictions)
     {
         this.reservationMapper = reservationMapper;
         this.deviceMapper = deviceMapper;
@@ -102,6 +103,7 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
         this.ruleService = ruleService;
         this.waitlist = waitlist;
         this.waitlistMapper = waitlistMapper;
+        this.restrictions = restrictions;
     }
 
     @Override
@@ -167,6 +169,7 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
             return replayOrConflict(existing, requestHash);
         }
 
+        if (claimingWaitlistId == null) restrictions.lockDeviceUsers(validated.deviceId(), applicantId);
         LabDevice device = deviceMapper.selectByIdForUpdate(validated.deviceId());
         if (device == null)
         {
@@ -240,6 +243,7 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
         {
             throw new LabBusinessException(LabErrorCode.RESOURCE_NOT_FOUND, "候补记录不存在");
         }
+        restrictions.lockDeviceUsers(snapshot.getDeviceId(), snapshot.getApplicantId());
         LabDevice device = deviceMapper.selectByIdForUpdate(snapshot.getDeviceId());
         if (device == null) { throw notFound(); }
         LabReservationWaitlist row = waitlistMapper.locked(id);
@@ -359,6 +363,7 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
     {
         long id = requirePositive(reservationId, "预约编号无效");
         LabReservation snapshot = requireActive(id);
+        restrictions.lockDeviceUsers(snapshot.getDeviceId(), snapshot.getApplicantId());
         LabDevice device = deviceMapper.selectByIdForUpdate(snapshot.getDeviceId());
         if (device == null)
         {
@@ -378,6 +383,7 @@ public class ReservationCommandServiceImpl implements ReservationCommandService
 
     private void assertReservable(LabDevice device, long applicantId, LocalDateTime qualifiedAt)
     {
+        restrictions.assertAllowed(applicantId, device.getLaboratoryId());
         if (device.getStatus() != DeviceStatus.AVAILABLE)
         {
             throw new LabBusinessException(LabErrorCode.LAB_DEVICE_UNAVAILABLE, "设备当前不可预约");

@@ -38,7 +38,7 @@ public class LabLaboratoryController extends LabBaseController
         this.laboratoryService = laboratoryService;
     }
 
-    @PreAuthorize("@ss.hasPermi('lab:laboratory:list')")
+    @PreAuthorize("@ss.hasAnyPermi('lab:laboratory:list,lab:restriction:manual,lab:restriction:rule,lab:restriction:list')")
     @GetMapping("/list")
     public TableDataInfo list(
             @RequestParam(required = false) LaboratoryStatus status,

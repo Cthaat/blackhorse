@@ -51,6 +51,7 @@ public class UsageCommandServiceImpl implements UsageCommandService
     private final UsageWindowPolicy windowPolicy;
     private final RepairOrderService repairOrderService;
     private final Clock clock;
+    private final com.ruoyi.lab.restriction.RestrictionGuard restrictions;
 
     public UsageCommandServiceImpl(LabReservationMapper reservationMapper,
             LabDeviceMapper deviceMapper, LabLaboratoryMapper laboratoryMapper,
@@ -59,7 +60,8 @@ public class UsageCommandServiceImpl implements UsageCommandService
             LabQualificationGuard qualificationGuard, LabHazardBlocker hazardBlocker,
             LabStatusHistoryService historyService,
             LabSystemParameterProvider parameterProvider, UsageWindowPolicy windowPolicy,
-            RepairOrderService repairOrderService, Clock clock)
+            RepairOrderService repairOrderService, Clock clock,
+            com.ruoyi.lab.restriction.RestrictionGuard restrictions)
     {
         this.reservationMapper = reservationMapper;
         this.deviceMapper = deviceMapper;
@@ -73,10 +75,11 @@ public class UsageCommandServiceImpl implements UsageCommandService
         this.windowPolicy = windowPolicy;
         this.repairOrderService = repairOrderService;
         this.clock = clock;
+        this.restrictions = restrictions;
     }
 
     @Override
-    @Transactional
+    @Transactional(isolation=org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public UsageRecordVo checkOut(CheckOutCommand command, Long operatorId)
     {
         if (command == null)
@@ -88,6 +91,7 @@ public class UsageCommandServiceImpl implements UsageCommandService
         String note = optionalText(command.note(), 500, "领用备注长度无效");
 
         LabReservation snapshot = requireReservation(reservationId);
+        restrictions.lockDeviceUsers(snapshot.getDeviceId(), snapshot.getApplicantId());
         LabDevice device = requireDeviceForUpdate(snapshot.getDeviceId());
         LabReservation reservation = reservationMapper.selectByIdForUpdate(reservationId);
         if (reservation == null)
@@ -108,6 +112,7 @@ public class UsageCommandServiceImpl implements UsageCommandService
         }
         requireStatus(reservation.getStatus(), ReservationStatus.APPROVED,
                 "预约当前不能办理领用");
+        restrictions.assertAllowed(reservation.getApplicantId(), device.getLaboratoryId());
         requireStatus(device.getStatus(), DeviceStatus.AVAILABLE, "设备当前不可领用");
 
         LabLaboratory laboratory = laboratoryMapper.selectByIdForUpdate(device.getLaboratoryId());

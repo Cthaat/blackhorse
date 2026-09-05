@@ -39,11 +39,13 @@ public class NotificationExpectationResolverImpl implements NotificationExpectat
     private final LabHazardMapper hazardMapper;
     private final LabDeviceMapper deviceMapper;
     private final LabNotificationRecipientMapper recipientMapper;
+    private final com.ruoyi.lab.mapper.LabRestrictionMapper restrictionMapper;
 
     public NotificationExpectationResolverImpl(LabStatusHistoryMapper historyMapper,
             LabReservationMapper reservationMapper, LabRepairOrderMapper repairMapper,
             LabInspectionTaskMapper inspectionTaskMapper, LabHazardMapper hazardMapper,
-            LabDeviceMapper deviceMapper, LabNotificationRecipientMapper recipientMapper)
+            LabDeviceMapper deviceMapper, LabNotificationRecipientMapper recipientMapper,
+            com.ruoyi.lab.mapper.LabRestrictionMapper restrictionMapper)
     {
         this.historyMapper = historyMapper;
         this.reservationMapper = reservationMapper;
@@ -52,6 +54,7 @@ public class NotificationExpectationResolverImpl implements NotificationExpectat
         this.hazardMapper = hazardMapper;
         this.deviceMapper = deviceMapper;
         this.recipientMapper = recipientMapper;
+        this.restrictionMapper = restrictionMapper;
     }
 
     @Override
@@ -71,6 +74,7 @@ public class NotificationExpectationResolverImpl implements NotificationExpectat
             case "REPAIR_ORDER" -> repairReceivers(history.getObjectId(), status);
             case "INSPECTION_TASK" -> inspectionReceivers(history.getObjectId(), status);
             case "HAZARD" -> hazardReceivers(history.getObjectId(), status);
+            case "RESTRICTION" -> restrictionReceivers(history.getObjectId(), status);
             default -> Set.of();
         };
         return commands(receivers, receiver -> NotificationDedupeKey.forHistory(
@@ -124,6 +128,20 @@ public class NotificationExpectationResolverImpl implements NotificationExpectat
             recipients(receivers, laboratoryId(reservation.getDeviceId()), LAB_MANAGER);
         else
             add(receivers, reservation.getApplicantId());
+        return receivers;
+    }
+
+    private Set<Long> restrictionReceivers(Long id, String status)
+    {
+        var restriction=restrictionMapper.byId(id,java.time.LocalDateTime.now());
+        if (restriction==null) return Set.of();
+        Set<Long> receivers=new LinkedHashSet<>();
+        if ("APPEAL_PENDING".equals(status))
+        {
+            recipients(receivers,restriction.laboratoryId,LAB_MANAGER);
+            receivers.remove(restriction.userId);
+        }
+        else add(receivers,restriction.userId);
         return receivers;
     }
 

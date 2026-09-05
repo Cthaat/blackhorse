@@ -35,12 +35,13 @@ public class LabAttachmentObjectAuthorizer
     private final LabHazardMapper hazardMapper;
     private final LabRectificationMapper rectificationMapper;
     private final LabRepairOrderMapper repairOrderMapper;
+    private final com.ruoyi.lab.restriction.RestrictionService restrictions;
 
     public LabAttachmentObjectAuthorizer(LabObjectPermissionService objectPermissionService,
             LabDataScopeService dataScopeService, LabLaboratoryMapper laboratoryMapper,
             LabDeviceMapper deviceMapper, LabQualificationMapper qualificationMapper,
             LabHazardMapper hazardMapper, LabRectificationMapper rectificationMapper,
-            LabRepairOrderMapper repairOrderMapper)
+            LabRepairOrderMapper repairOrderMapper, com.ruoyi.lab.restriction.RestrictionService restrictions)
     {
         this.objectPermissionService = objectPermissionService;
         this.dataScopeService = dataScopeService;
@@ -50,6 +51,7 @@ public class LabAttachmentObjectAuthorizer
         this.hazardMapper = hazardMapper;
         this.rectificationMapper = rectificationMapper;
         this.repairOrderMapper = repairOrderMapper;
+        this.restrictions = restrictions;
     }
 
     public String normalizeBusinessType(String businessType)
@@ -60,7 +62,7 @@ public class LabAttachmentObjectAuthorizer
         }
         String normalized = businessType.trim().toUpperCase(Locale.ROOT);
         if (!List.of("LABORATORY", "DEVICE", "QUALIFICATION", "RECTIFICATION",
-                "REPAIR_ORDER").contains(normalized))
+                "REPAIR_ORDER", "RESTRICTION").contains(normalized))
         {
             throw invalidType();
         }
@@ -76,6 +78,7 @@ public class LabAttachmentObjectAuthorizer
             case "QUALIFICATION" -> assertQualificationReadable(businessId);
             case "RECTIFICATION" -> assertRectificationReadable(businessId);
             case "REPAIR_ORDER" -> assertRepairReadable(businessId);
+            case "RESTRICTION" -> restrictions.readable(businessId);
             default -> throw invalidType();
         }
     }
@@ -104,6 +107,7 @@ public class LabAttachmentObjectAuthorizer
             }
             case "RECTIFICATION" -> assertRectificationManageable(businessId);
             case "REPAIR_ORDER" -> assertRepairManageable(businessId);
+            case "RESTRICTION" -> restrictions.lockEvidenceOwner(businessId);
             default -> throw invalidType();
         }
     }

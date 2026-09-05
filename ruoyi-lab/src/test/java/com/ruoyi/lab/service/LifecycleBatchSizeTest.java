@@ -56,7 +56,8 @@ class LifecycleBatchSizeTest
         when(parameters.requiredInteger(any(), anyInt(), anyInt())).thenReturn(15);
         reservations = new ReservationLifecycleServiceImpl(reservationMapper,
                 mock(LabDeviceMapper.class), operatorProvider, parameters,
-                mock(LabStatusHistoryService.class));
+                mock(LabStatusHistoryService.class), mock(com.ruoyi.lab.restriction.RestrictionGuard.class),
+                mock(com.ruoyi.lab.restriction.RestrictionService.class));
 
         LabInspectionPlanMapper planMapper = mock(LabInspectionPlanMapper.class);
         when(planMapper.selectDuePlansForUpdate(any(), anyInt())).thenReturn(List.of());

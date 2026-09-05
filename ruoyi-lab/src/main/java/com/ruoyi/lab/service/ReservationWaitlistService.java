@@ -31,10 +31,12 @@ public class ReservationWaitlistService
     private final ReservationWaitlistCoordinator coordinator;
     private final ReservationCommandService reservations;
     private final Clock clock;
+    private final com.ruoyi.lab.restriction.RestrictionGuard restrictions;
 
     public ReservationWaitlistService(LabReservationWaitlistMapper queue, LabDeviceMapper devices,
             LabObjectPermissionService permissions, ReservationPolicy policy, ReservationRequestHasher hasher,
-            ReservationWaitlistCoordinator coordinator, ReservationCommandService reservations, Clock clock)
+            ReservationWaitlistCoordinator coordinator, ReservationCommandService reservations, Clock clock,
+            com.ruoyi.lab.restriction.RestrictionGuard restrictions)
     {
         this.queue = queue;
         this.devices = devices;
@@ -44,6 +46,7 @@ public class ReservationWaitlistService
         this.coordinator = coordinator;
         this.reservations = reservations;
         this.clock = clock;
+        this.restrictions = restrictions;
     }
 
     public List<ReservationWaitlistVo> mine(Long deviceId, String status)
@@ -64,6 +67,7 @@ public class ReservationWaitlistService
         permissions.assertDeviceReadable(range.deviceId());
         Long userId = permissions.currentUserId();
         String hash = hasher.hash(range, null);
+        restrictions.lockDeviceUsers(range.deviceId(), userId);
         LabDevice device = devices.selectByIdForUpdate(range.deviceId());
         if (device == null) { throw new LabBusinessException(LabErrorCode.RESOURCE_NOT_FOUND, "设备不存在"); }
         LabReservationWaitlist replay = queue.byKey(userId, key);
@@ -113,6 +117,7 @@ public class ReservationWaitlistService
     public ReservationWaitlistVo cancel(Long id, int version)
     {
         LabReservationWaitlist original = owned(id);
+        restrictions.lockDeviceUsers(original.getDeviceId(), original.getApplicantId());
         LabDevice device = devices.selectByIdForUpdate(original.getDeviceId());
         if (device == null) { throw new LabBusinessException(LabErrorCode.RESOURCE_NOT_FOUND, "设备不存在"); }
         LabReservationWaitlist row = queue.locked(id);

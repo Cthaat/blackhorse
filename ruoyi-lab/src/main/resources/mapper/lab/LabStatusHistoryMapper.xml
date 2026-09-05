@@ -38,6 +38,15 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                 or (r.data_scope='4' and exists (select 1 from sys_dept sd where sd.dept_id=l.dept_id and sd.status='0' and sd.del_flag='0' and (sd.dept_id=u.dept_id or find_in_set(u.dept_id,sd.ancestors)&gt;0)))
                 or (r.data_scope='5' and l.manager_id=u.user_id))
         ), expected as (
+            select h.id history_id, concat('RESTRICTION_',h.to_status) notification_type, r.user_id receiver_id
+            from lab_status_history h join lab_restriction r on r.id=h.object_id
+            where h.del_flag='0' and h.object_type='RESTRICTION' and h.to_status&lt;&gt;'APPEAL_PENDING'
+            union all
+            select h.id, concat('RESTRICTION_',h.to_status), s.user_id
+            from lab_status_history h join lab_restriction r on r.id=h.object_id
+            join scoped_role_user s on s.laboratory_id=r.laboratory_id and s.role_key='lab_manager' and s.user_id&lt;&gt;r.user_id
+            where h.del_flag='0' and h.object_type='RESTRICTION' and h.to_status='APPEAL_PENDING'
+            union all
             select h.id history_id, concat('RESERVATION_',h.to_status) notification_type,
                    r.applicant_id receiver_id
             from lab_status_history h join lab_reservation r on r.id=h.object_id and r.del_flag='0'

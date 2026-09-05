@@ -62,7 +62,7 @@ public class MessageTemplateService
     private static Map<String,String> samples(String event) { return Map.of("eventType",event,"businessType","RESERVATION","businessId","123","title","业务状态已更新","content","业务单据状态已更新"); }
     private static void validate(MessageTemplateDto dto)
     {
-        if(dto==null||dto.eventType()==null||!dto.eventType().matches("(?:RESERVATION|REPAIR_ORDER|INSPECTION_TASK|HAZARD)_[A-Z_]+|WAITLIST_OFFERED")||dto.eventType().length()>32)
+        if(dto==null||dto.eventType()==null||!dto.eventType().matches("(?:RESERVATION|REPAIR_ORDER|INSPECTION_TASK|HAZARD|RESTRICTION)_[A-Z_]+|WAITLIST_OFFERED")||dto.eventType().length()>32)
             throw MessageDeliveryPolicy.invalid("事件类型无效");
         MessageDeliveryPolicy.validateTemplate(dto.title(),128); MessageDeliveryPolicy.validateTemplate(dto.content(),500);
     }

@@ -29,20 +29,26 @@ public class ReservationLifecycleServiceImpl implements ReservationLifecycleServ
     private final LabSystemOperatorProvider operatorProvider;
     private final LabSystemParameterProvider parameterProvider;
     private final LabStatusHistoryService historyService;
+    private final com.ruoyi.lab.restriction.RestrictionGuard restrictions;
+    private final com.ruoyi.lab.restriction.RestrictionService restrictionService;
 
     public ReservationLifecycleServiceImpl(LabReservationMapper reservationMapper,
             LabDeviceMapper deviceMapper, LabSystemOperatorProvider operatorProvider,
-            LabSystemParameterProvider parameterProvider, LabStatusHistoryService historyService)
+            LabSystemParameterProvider parameterProvider, LabStatusHistoryService historyService,
+            com.ruoyi.lab.restriction.RestrictionGuard restrictions,
+            com.ruoyi.lab.restriction.RestrictionService restrictionService)
     {
         this.reservationMapper = reservationMapper;
         this.deviceMapper = deviceMapper;
         this.operatorProvider = operatorProvider;
         this.parameterProvider = parameterProvider;
         this.historyService = historyService;
+        this.restrictions = restrictions;
+        this.restrictionService = restrictionService;
     }
 
     @Override
-    @Transactional
+    @Transactional(isolation=org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public int expirePending(LocalDateTime now, int batchSize)
     {
         LabSystemOperator operator = operatorProvider.requiredOperator();
@@ -53,7 +59,7 @@ public class ReservationLifecycleServiceImpl implements ReservationLifecycleServ
     }
 
     @Override
-    @Transactional
+    @Transactional(isolation=org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public int markNoShow(LocalDateTime now, int batchSize)
     {
         LabSystemOperator operator = operatorProvider.requiredOperator();
@@ -69,6 +75,7 @@ public class ReservationLifecycleServiceImpl implements ReservationLifecycleServ
             ReservationStatus from, ReservationStatus to, LabSystemOperator operator, String reason)
     {
         int changed = 0;
+        restrictions.lockUsers(candidates.stream().map(LabReservation::getApplicantId).distinct().sorted().toList());
         for (LabReservation candidate : candidates)
         {
             LabDevice device = deviceMapper.selectByIdForUpdate(candidate.getDeviceId());
@@ -87,6 +94,8 @@ public class ReservationLifecycleServiceImpl implements ReservationLifecycleServ
             {
                 historyService.append(OBJECT_TYPE, locked.getId(), from.name(), to.name(),
                         operator.userId(), reason);
+                if (to == ReservationStatus.NO_SHOW)
+                    restrictionService.recordNoShow(locked, device.getLaboratoryId(), now, operator.userId());
                 changed++;
             }
         }

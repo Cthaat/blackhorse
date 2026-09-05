@@ -103,6 +103,12 @@ const props = defineProps({
 })
 
 const { proxy } = getCurrentInstance()
+const emit = defineEmits(['busy'])
+let pendingChanges = 0
+function changeBusy(delta) {
+  pendingChanges += delta
+  emit('busy', pendingChanges > 0)
+}
 const acceptedTypes = '.jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf'
 const attachments = ref([])
 const loading = ref(false)
@@ -159,6 +165,7 @@ function beforeUpload(file) {
 
 async function handleUpload(options) {
   uploading.value = true
+  changeBusy(1)
   uploadPercent.value = 0
   errorMessage.value = ''
   try {
@@ -177,6 +184,7 @@ async function handleUpload(options) {
     errorMessage.value = '附件上传失败，请检查文件后重试'
   } finally {
     uploading.value = false
+    changeBusy(-1)
   }
 }
 
@@ -195,6 +203,7 @@ async function handleDownload(row) {
 }
 
 async function handleDelete(row) {
+  changeBusy(1)
   try {
     await proxy.$modal.confirm(`确认删除附件“${row.originalName}”吗？`)
     await delAttachment(row.id)
@@ -202,6 +211,8 @@ async function handleDelete(row) {
     await loadAttachments()
   } catch {
     // User cancellation and request errors are already handled globally.
+  } finally {
+    changeBusy(-1)
   }
 }
 
