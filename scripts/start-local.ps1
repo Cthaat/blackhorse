@@ -462,12 +462,17 @@ function Wait-OwnedListener {
         if (-not (Test-ProcessIdentity -Identity $Identity)) {
             throw "The process expected on port $($Identity.port) exited before becoming ready."
         }
-        if (Test-OwnedListener -Identity $Identity) {
-            return
-        }
+        # Use one listener snapshot: the process can bind between two reads.
         $listeners = @(Get-Listeners -Port ([int]$Identity.port))
         if ($listeners.Count -gt 0) {
-            throw "Port $($Identity.port) was claimed by a process other than the one just started."
+            $unexpected = @($listeners | Where-Object {
+                [int]$_.OwningProcess -ne [int]$Identity.processId -or
+                [string]$_.LocalAddress -ne '127.0.0.1'
+            })
+            if ($unexpected.Count -gt 0) {
+                throw "Port $($Identity.port) has an unexpected owner or non-loopback binding."
+            }
+            if (Test-ProcessIdentity -Identity $Identity) { return }
         }
         Start-Sleep -Milliseconds 250
     } while ([DateTime]::UtcNow -lt $deadline)
@@ -1057,6 +1062,7 @@ daemonize no
         LAB_DEMO_ADMIN_PASSWORD = Get-DemoPassword -Credentials $credentials -Username 'lab_system_admin'
         LAB_FILE_ROOT = (Join-Path $RuntimeRoot 'files\attachments')
         LAB_PROFILE_ROOT = (Join-Path $RuntimeRoot 'files\profile')
+        LAB_LOG_ROOT = (Join-Path $RuntimeRoot 'logs')
         JAVA_HOME = $JavaHome
     }
     $backendIdentity = Start-HiddenOwnedProcess -FilePath $JavaCommand `
