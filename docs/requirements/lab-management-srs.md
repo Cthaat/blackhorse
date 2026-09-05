@@ -462,6 +462,8 @@ PENDING_RECTIFICATION → RECTIFYING → PENDING_REVIEW → CLOSED。
 
 ## 15. V1排除项
 
+2026-09-05 范围更新：以下仍不属于当前 V1 修复验收，但已纳入[分期扩展需求池](lab-extension-backlog.md)，不再视为项目永久排除项。用户确认本轮只加入需求，后续再选择批次开发。
+
 1. 微信小程序、独立H5端、Android或iOS客户端；
 2. 真实门禁、RFID、传感器、摄像头或其他物联网设备；
 3. 人脸、OCR、AI故障诊断或AI风险识别；
