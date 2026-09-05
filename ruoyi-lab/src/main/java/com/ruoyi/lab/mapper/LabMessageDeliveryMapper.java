@@ -35,7 +35,9 @@ public interface LabMessageDeliveryMapper
     List<MessageAttemptVo> attempts(Long id);
     @Update("UPDATE lab_message_delivery SET status='PENDING',attempt_count=0,next_retry_at=#{now},error_code=NULL,execution_version=execution_version+1,update_time=#{now} WHERE id=#{id} AND status='MANUAL_REQUIRED'")
     int replay(@Param("id") Long id,@Param("now") LocalDateTime now);
-    @Select("SELECT w.id,w.applicant_id AS applicantId,w.offered_until AS offeredUntil FROM lab_reservation_waitlist w WHERE w.offered_until IS NOT NULL AND NOT EXISTS(SELECT 1 FROM lab_message_delivery d WHERE d.dedupe_key=concat('WAITLIST:',w.id,':OFFERED')) AND NOT EXISTS(SELECT 1 FROM lab_notification n WHERE n.dedupe_key=concat('WAITLIST:',w.id,':OFFERED')) ORDER BY w.id LIMIT #{limit}")
+    @Update("UPDATE lab_message_delivery SET status='PENDING',next_retry_at=#{now},execution_version=execution_version+1,update_time=#{now} WHERE id=#{id} AND status='RETRY_WAIT' AND attempt_count>=0 AND attempt_count<5")
+    int retryNow(@Param("id") Long id,@Param("now") LocalDateTime now);
+    @Select("SELECT w.id,w.applicant_id AS applicantId,w.offered_until AS offeredUntil FROM lab_reservation_waitlist w WHERE w.offered_until IS NOT NULL AND NOT EXISTS(SELECT 1 FROM lab_message_delivery d WHERE d.dedupe_key=cast(concat('WAITLIST:',w.id,':OFFERED') as binary)) AND NOT EXISTS(SELECT 1 FROM lab_notification n WHERE n.dedupe_key=cast(concat('WAITLIST:',w.id,':OFFERED') as binary)) ORDER BY w.id LIMIT #{limit}")
     List<LabReservationWaitlist> missingWaitlists(int limit);
     @Select("SELECT count(*) FROM lab_status_history WHERE id=#{id} AND del_flag='0'") int historyExists(Long id);
     @Select("SELECT count(*) FROM lab_inspection_task WHERE id=#{id} AND overdue_event_version=#{version} AND del_flag='0'") int inspectionExists(@Param("id") Long id,@Param("version") Long version);

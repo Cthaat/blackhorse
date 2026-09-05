@@ -60,7 +60,7 @@
           and h.overdue_event_version &gt; 0 and h.del_flag='0'
           and ((h.owner_id is not null and not exists (
                     select 1 from lab_message_delivery n
-                  where n.dedupe_key=concat('overdue:hazard:',h.id,':',h.overdue_event_version,':',h.owner_id)
+                  where n.dedupe_key=cast(concat('overdue:hazard:',h.id,':',h.overdue_event_version,':',h.owner_id) as binary)
               )) or exists (
                   select 1 from sys_user_role ur
                   join sys_user u on u.user_id=ur.user_id and u.status='0' and u.del_flag='0'
@@ -71,7 +71,7 @@
                     or (r.data_scope='3' and l.dept_id=u.dept_id)
                     or (r.data_scope='4' and exists (select 1 from sys_dept sd where sd.dept_id=l.dept_id and sd.status='0' and sd.del_flag='0' and (sd.dept_id=u.dept_id or find_in_set(u.dept_id,sd.ancestors)&gt;0)))
                     or (r.data_scope='5' and l.manager_id=u.user_id))
-                    and not exists (select 1 from lab_message_delivery n where n.dedupe_key=concat('overdue:hazard:',h.id,':',h.overdue_event_version,':',u.user_id))
+                    and not exists (select 1 from lab_message_delivery n where n.dedupe_key=cast(concat('overdue:hazard:',h.id,':',h.overdue_event_version,':',u.user_id) as binary))
               ))
         order by h.id limit #{limit}
     </select>

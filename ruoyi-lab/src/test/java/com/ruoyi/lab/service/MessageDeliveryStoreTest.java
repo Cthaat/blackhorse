@@ -51,5 +51,36 @@ class MessageDeliveryStoreTest
         store.recover(now,10);
         verify(mapper).finish(8L,1,"DELIVERED",null,null,now);
     }
+    @Test void earlyRetryPreservesAttemptBudgetAndAuditsReason()
+    {
+        LabMessageDelivery row=row(2);row.status="RETRY_WAIT";row.sourceType="STATUS_HISTORY";row.sourceId=1L;
+        when(mapper.locked(8L)).thenReturn(row);when(mapper.historyExists(1L)).thenReturn(1);
+        when(mapper.retryNow(8L,now)).thenReturn(1);
+        try(var security=mockStatic(com.ruoyi.common.utils.SecurityUtils.class))
+        {
+            security.when(() -> com.ruoyi.common.utils.SecurityUtils.hasPermi("lab:delivery:retry")).thenReturn(true);
+            security.when(com.ruoyi.common.utils.SecurityUtils::getUserId).thenReturn(7L);
+            store.retryNow(8L,"数据库已恢复",7L);
+        }
+        verify(mapper).audit(8L,"RETRY_NOW",2,7L,"数据库已恢复","PENDING",null,null,now);
+        verify(mapper,never()).replay(any(),any());
+        verifyNoInteractions(templates);
+    }
+    @Test void earlyRetryRejectsExhaustedBudgetMissingFactAndUnauthorizedActor()
+    {
+        LabMessageDelivery row=row(5);row.status="RETRY_WAIT";row.sourceType="STATUS_HISTORY";row.sourceId=1L;
+        when(mapper.locked(8L)).thenReturn(row);
+        try(var security=mockStatic(com.ruoyi.common.utils.SecurityUtils.class))
+        {
+            assertThatThrownBy(() -> store.retryNow(8L,"原因",7L)).isInstanceOf(RuntimeException.class);
+            security.when(() -> com.ruoyi.common.utils.SecurityUtils.hasPermi("lab:delivery:retry")).thenReturn(true);
+            security.when(com.ruoyi.common.utils.SecurityUtils::getUserId).thenReturn(7L);
+            assertThatThrownBy(() -> store.retryNow(8L,"原因",7L)).isInstanceOf(RuntimeException.class);
+            row.attemptCount=2;
+            assertThatThrownBy(() -> store.retryNow(8L,"原因",7L)).isInstanceOf(RuntimeException.class);
+            assertThatThrownBy(() -> store.retryNow(8L," ",7L)).isInstanceOf(RuntimeException.class);
+        }
+        verify(mapper,never()).retryNow(any(),any());
+    }
     private static LabMessageDelivery row(int attempt) {var row=new LabMessageDelivery();row.id=8L;row.attemptCount=attempt;row.executionVersion=1;return row;}
 }

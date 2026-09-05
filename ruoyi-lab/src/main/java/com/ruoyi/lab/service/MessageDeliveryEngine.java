@@ -26,11 +26,13 @@ public class MessageDeliveryEngine
         for(Long id:ids) execute(id);
         return ids.size();
     }
-    public void backfillWaitlists(int limit)
+    public int backfillWaitlists(int limit)
     {
-        for(var row:mapper.missingWaitlists(limit)) registerAndDeliver(new NotificationCommand("WAITLIST:"+row.getId()+":OFFERED",
+        var missing=mapper.missingWaitlists(limit);
+        for(var row:missing) registerAndDeliver(new NotificationCommand("WAITLIST:"+row.getId()+":OFFERED",
                 row.getApplicantId(),"WAITLIST_OFFERED","预约候补确认邀请",
                 "您申请的时段已空出，请在"+row.getOfferedUntil()+"前打开我的预约中的开放日历与候补确认。确认后仍需审批。","WAITLIST",row.getId()));
+        return missing.size();
     }
     private void execute(Long id)
     {

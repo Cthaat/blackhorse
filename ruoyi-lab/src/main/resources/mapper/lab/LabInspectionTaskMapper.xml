@@ -50,8 +50,8 @@
           and t.assignee_id is not null
           and not exists (
                 select 1 from lab_message_delivery n
-              where n.dedupe_key = concat('overdue:inspection_task:', t.id, ':',
-                                           t.overdue_event_version, ':', t.assignee_id)
+              where n.dedupe_key = cast(concat('overdue:inspection_task:', t.id, ':',
+                                           t.overdue_event_version, ':', t.assignee_id) as binary)
           )
         order by t.id limit #{limit}
     </select>

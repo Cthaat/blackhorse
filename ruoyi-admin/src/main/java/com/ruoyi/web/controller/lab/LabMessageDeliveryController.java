@@ -37,6 +37,11 @@ public class LabMessageDeliveryController extends LabBaseController
     @PostMapping("/{id}/commands/replay")
     public AjaxResult replay(@PathVariable @Positive Long id,@Valid @RequestBody MessageReplayDto dto)
     { store.replay(id,dto.reason(),getUserId());return success(); }
+    @PreAuthorize("@ss.hasPermi('lab:delivery:retry')")
+    @Log(title="消息投递提前重试",businessType=BusinessType.UPDATE,isSaveRequestData=false)
+    @PostMapping("/{id}/commands/retry-now")
+    public AjaxResult retryNow(@PathVariable @Positive Long id,@Valid @RequestBody MessageReplayDto dto)
+    { store.retryNow(id,dto.reason(),getUserId());return success(); }
     @PreAuthorize("@ss.hasPermi('lab:delivery:list')")
     @GetMapping("/channels") public AjaxResult channels()
     {return success(List.of(new Channel("STATION","站内消息",true),new Channel("EMAIL","邮件（未接入）",false),new Channel("SMS","短信（未接入）",false),new Channel("ENTERPRISE","企业消息（未接入）",false)));}

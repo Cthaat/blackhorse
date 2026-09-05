@@ -4,6 +4,7 @@ import { encodeStringId } from './_contract'
 export const listDeliveries = params => request({ url: '/lab/deliveries', method: 'get', params })
 export const getDelivery = id => request({ url: `/lab/deliveries/${encodeStringId(id)}`, method: 'get' })
 export const replayDelivery = (id, reason) => request({ url: `/lab/deliveries/${encodeStringId(id)}/commands/replay`, method: 'post', data: { reason } })
+export const retryDeliveryNow = (id, reason) => request({ url: `/lab/deliveries/${encodeStringId(id)}/commands/retry-now`, method: 'post', data: { reason } })
 export const listChannels = () => request({ url: '/lab/deliveries/channels', method: 'get' })
 export const listTemplates = params => request({ url: '/lab/message-templates', method: 'get', params })
 export const listTemplateVersions = params => request({ url: '/lab/message-templates/versions', method: 'get', params })

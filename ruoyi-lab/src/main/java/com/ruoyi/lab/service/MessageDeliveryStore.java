@@ -85,6 +85,22 @@ public class MessageDeliveryStore
             default -> false;
         };
     }
+
+    /** Advance only the retry schedule; the normal worker owns sending and attempt accounting. */
+    @Transactional
+    public void retryNow(Long id,String reason,Long operator)
+    {
+        if(!com.ruoyi.common.utils.SecurityUtils.hasPermi("lab:delivery:retry")
+                || !java.util.Objects.equals(operator,com.ruoyi.common.utils.SecurityUtils.getUserId()))
+            throw new org.springframework.security.access.AccessDeniedException("无提前重试权限");
+        if(reason==null||reason.isBlank()||reason.length()>200) throw MessageDeliveryPolicy.invalid("提前重试必须填写不超过200字的原因");
+        LabMessageDelivery row=mapper.locked(id);
+        if(row==null||!"RETRY_WAIT".equals(row.status)||row.attemptCount<0||row.attemptCount>=5||!factExists(row))
+            throw MessageDeliveryPolicy.invalid("仅可提前重试来源事实有效且未用尽次数的等待记录");
+        LocalDateTime now=LocalDateTime.now(clock);
+        if(mapper.retryNow(id,now)!=1) throw MessageDeliveryPolicy.invalid("投递状态已变化，请刷新");
+        mapper.audit(id,"RETRY_NOW",row.attemptCount,operator,reason.trim(),"PENDING",null,MDC.get("traceId"),now);
+    }
     private static void source(LabMessageDelivery row)
     {
         String[] key=row.dedupeKey.split(":"); row.eventVersion=1L;
