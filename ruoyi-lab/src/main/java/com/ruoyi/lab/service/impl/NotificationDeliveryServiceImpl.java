@@ -1,111 +1,26 @@
 package com.ruoyi.lab.service.impl;
-
 import java.time.Clock;
 import java.time.LocalDateTime;
-import com.ruoyi.lab.config.LabJobProperties;
-import com.ruoyi.lab.domain.LabNotification;
-import com.ruoyi.lab.domain.NotificationDeliveryStatus;
-import com.ruoyi.lab.exception.LabBusinessException;
-import com.ruoyi.lab.exception.LabErrorCode;
+import com.ruoyi.lab.dto.NotificationCommand;
 import com.ruoyi.lab.mapper.LabNotificationMapper;
+import com.ruoyi.lab.service.MessageDeliveryEngine;
 import com.ruoyi.lab.service.NotificationDeliveryService;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 
-/** MySQL-deduplicated station notification delivery. */
+/** Compatibility facade. All callers share the same execution register. */
 @Service
 public class NotificationDeliveryServiceImpl implements NotificationDeliveryService
 {
-    private final LabNotificationMapper notificationMapper;
+    private final LabNotificationMapper mapper;
+    private final MessageDeliveryEngine engine;
     private final Clock clock;
-
-    public NotificationDeliveryServiceImpl(LabNotificationMapper notificationMapper, Clock clock)
-    {
-        this.notificationMapper = notificationMapper;
-        this.clock = clock;
-    }
-
-    @Override
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public NotificationDeliveryServiceImpl(LabNotificationMapper mapper, MessageDeliveryEngine engine,Clock clock)
+    { this.mapper=mapper;this.engine=engine;this.clock=clock; }
     public long deliver(NotificationEvent event)
     {
-        validate(event);
-        LabNotification existing = notificationMapper.selectByDedupeKey(event.dedupeKey());
-        if (existing != null)
-        {
-            return existing.getId();
-        }
-        LabNotification notification = from(event);
-        try
-        {
-            notificationMapper.insert(notification);
-            return notification.getId();
-        }
-        catch (DuplicateKeyException exception)
-        {
-            LabNotification winner = notificationMapper.selectByDedupeKey(event.dedupeKey());
-            if (winner != null)
-            {
-                return winner.getId();
-            }
-            throw exception;
-        }
+        engine.registerAndDeliver(new NotificationCommand(event.dedupeKey(),event.receiverId(),event.notificationType(),event.title(),event.content(),event.businessType(),event.businessId()));
+        var sent=mapper.selectByDedupeKey(event.dedupeKey());
+        return sent==null?0L:sent.getId();
     }
-
-    @Override
-    @Transactional
-    public int compensateDue(int batchSize)
-    {
-        if (batchSize < LabJobProperties.MIN_BATCH_SIZE
-                || batchSize > LabJobProperties.MAX_BATCH_SIZE)
-        {
-            throw new LabBusinessException(LabErrorCode.VALIDATION_ERROR, "补偿批量大小无效");
-        }
-        LocalDateTime now = LocalDateTime.now(clock);
-        int changed = 0;
-        for (Long id : notificationMapper.selectDueFailedIds(now, batchSize))
-        {
-            changed += notificationMapper.markSent(id, now);
-        }
-        return changed;
-    }
-
-    private LabNotification from(NotificationEvent event)
-    {
-        LabNotification notification = new LabNotification();
-        notification.setDedupeKey(event.dedupeKey());
-        notification.setReceiverId(event.receiverId());
-        notification.setNotificationType(event.notificationType());
-        notification.setTitle(event.title());
-        notification.setContent(event.content());
-        notification.setBusinessType(event.businessType());
-        notification.setBusinessId(event.businessId());
-        notification.setDeliveryStatus(NotificationDeliveryStatus.SENT);
-        notification.setAttemptCount(1);
-        notification.setCreateBy("system");
-        notification.setCreateTime(LocalDateTime.now(clock));
-        notification.setUpdateBy("");
-        return notification;
-    }
-
-    private static void validate(NotificationEvent event)
-    {
-        if (event == null || blank(event.dedupeKey()) || event.dedupeKey().length() > 128
-                || event.receiverId() == null || event.receiverId() <= 0
-                || blank(event.notificationType()) || event.notificationType().length() > 32
-                || blank(event.title()) || event.title().length() > 128
-                || blank(event.content()) || event.content().length() > 500
-                || blank(event.businessType()) || event.businessType().length() > 32
-                || event.businessId() == null || event.businessId() <= 0)
-        {
-            throw new LabBusinessException(LabErrorCode.VALIDATION_ERROR, "通知事件参数无效");
-        }
-    }
-
-    private static boolean blank(String value)
-    {
-        return value == null || value.isBlank();
-    }
+    public int compensateDue(int batchSize) { return engine.retryDue(LocalDateTime.now(clock),batchSize); }
 }

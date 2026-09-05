@@ -5,56 +5,53 @@ import java.util.List;
 import com.ruoyi.lab.config.LabJobProperties;
 import com.ruoyi.lab.domain.LabHazard;
 import com.ruoyi.lab.domain.LabInspectionTask;
-import com.ruoyi.lab.domain.LabNotification;
 import com.ruoyi.lab.dto.NotificationCommand;
 import com.ruoyi.lab.exception.LabBusinessException;
 import com.ruoyi.lab.exception.LabErrorCode;
 import com.ruoyi.lab.mapper.LabHazardMapper;
 import com.ruoyi.lab.mapper.LabInspectionTaskMapper;
-import com.ruoyi.lab.mapper.LabNotificationMapper;
 import com.ruoyi.lab.mapper.LabStatusHistoryMapper;
 import com.ruoyi.lab.service.LabNotificationCompensationService;
 import com.ruoyi.lab.service.LabNotificationDeliveryService;
 import com.ruoyi.lab.service.NotificationExpectationResolver;
+import com.ruoyi.lab.service.MessageDeliveryEngine;
 import org.springframework.stereotype.Service;
 
 @Service
 public class LabNotificationCompensationServiceImpl
         implements LabNotificationCompensationService
 {
-    private final LabNotificationMapper notificationMapper;
     private final LabStatusHistoryMapper historyMapper;
     private final LabInspectionTaskMapper inspectionTaskMapper;
     private final LabHazardMapper hazardMapper;
     private final NotificationExpectationResolver expectationResolver;
     private final LabNotificationDeliveryService deliveryService;
+    private final MessageDeliveryEngine engine;
 
-    public LabNotificationCompensationServiceImpl(LabNotificationMapper notificationMapper,
-            LabStatusHistoryMapper historyMapper, LabInspectionTaskMapper inspectionTaskMapper,
+    public LabNotificationCompensationServiceImpl(LabStatusHistoryMapper historyMapper, LabInspectionTaskMapper inspectionTaskMapper,
             LabHazardMapper hazardMapper, NotificationExpectationResolver expectationResolver,
-            LabNotificationDeliveryService deliveryService)
+            LabNotificationDeliveryService deliveryService, MessageDeliveryEngine engine)
     {
-        this.notificationMapper = notificationMapper;
         this.historyMapper = historyMapper;
         this.inspectionTaskMapper = inspectionTaskMapper;
         this.hazardMapper = hazardMapper;
         this.expectationResolver = expectationResolver;
         this.deliveryService = deliveryService;
+        this.engine = engine;
     }
 
     @Override
     public int retryFailed(LocalDateTime now, int batchSize)
     {
         validate(now, batchSize);
-        List<LabNotification> failed = notificationMapper.selectRetryable(now, batchSize);
-        failed.forEach(row -> deliveryService.deliverSafely(command(row)));
-        return failed.size();
+        return engine.retryDue(now, batchSize);
     }
 
     @Override
     public int reconcileStatusHistory(LocalDateTime now, int batchSize)
     {
         validate(now, batchSize);
+        engine.backfillWaitlists(batchSize);
         int delivered = 0;
         for (Long historyId : historyMapper.selectNotificationCandidateIds(batchSize))
         {
@@ -77,13 +74,6 @@ public class LabNotificationCompensationServiceImpl
     {
         commands.forEach(deliveryService::deliverSafely);
         return commands.size();
-    }
-
-    private static NotificationCommand command(LabNotification row)
-    {
-        return new NotificationCommand(row.getDedupeKey(), row.getReceiverId(),
-                row.getNotificationType(), row.getTitle(), row.getContent(),
-                row.getBusinessType(), row.getBusinessId());
     }
 
     private static void validate(LocalDateTime now, int batchSize)

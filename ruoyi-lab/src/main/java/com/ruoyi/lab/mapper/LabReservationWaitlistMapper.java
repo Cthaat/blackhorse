@@ -42,7 +42,7 @@ public interface LabReservationWaitlistMapper extends BaseMapper<LabReservationW
     @Select("SELECT device_id FROM lab_reservation_waitlist WHERE status IN ('WAITING','OFFERED') GROUP BY device_id ORDER BY MIN(update_time),device_id LIMIT 100")
     List<Long> dueDevices();
 
-    @Update("UPDATE lab_reservation_waitlist SET status=#{status},reason=#{reason},offered_until=#{until},reservation_id=#{reservationId},version=version+1,update_time=#{now} WHERE id=#{id} AND version=#{version}")
+    @Update("UPDATE lab_reservation_waitlist SET status=#{status},reason=#{reason},offered_until=COALESCE(#{until},offered_until),reservation_id=#{reservationId},version=version+1,update_time=#{now} WHERE id=#{id} AND version=#{version}")
     int transition(@Param("id") Long id, @Param("version") int version, @Param("status") String status,
             @Param("reason") String reason, @Param("until") LocalDateTime until,
             @Param("reservationId") Long reservationId, @Param("now") LocalDateTime now);

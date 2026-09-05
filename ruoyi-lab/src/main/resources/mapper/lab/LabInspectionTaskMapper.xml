@@ -49,7 +49,7 @@
           and t.overdue_event_version &gt; 0 and t.del_flag='0'
           and t.assignee_id is not null
           and not exists (
-              select 1 from lab_notification n
+                select 1 from lab_message_delivery n
               where n.dedupe_key = concat('overdue:inspection_task:', t.id, ':',
                                            t.overdue_event_version, ':', t.assignee_id)
           )

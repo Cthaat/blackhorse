@@ -35,18 +35,20 @@ class LabNotificationCompensationServiceImplTest
         LabNotificationMapper notifications = mock(LabNotificationMapper.class);
         when(notifications.selectRetryable(now, 100)).thenReturn(List.of(row));
         LabNotificationDeliveryService delivery = mock(LabNotificationDeliveryService.class);
-        LabNotificationCompensationServiceImpl service = service(notifications, delivery);
+        com.ruoyi.lab.service.MessageDeliveryEngine engine=mock(com.ruoyi.lab.service.MessageDeliveryEngine.class);
+        when(engine.retryDue(now,100)).thenReturn(1);
+        LabNotificationCompensationServiceImpl service = service(notifications, delivery, engine);
 
         assertThat(service.retryFailed(now, 100)).isEqualTo(1);
-        verify(delivery).deliverSafely(any(NotificationCommand.class));
+        verify(engine).retryDue(now,100);
     }
 
     private static LabNotificationCompensationServiceImpl service(
-            LabNotificationMapper notifications, LabNotificationDeliveryService delivery)
+            LabNotificationMapper notifications, LabNotificationDeliveryService delivery,
+            com.ruoyi.lab.service.MessageDeliveryEngine engine)
     {
-        return new LabNotificationCompensationServiceImpl(notifications,
-                mock(LabStatusHistoryMapper.class), mock(LabInspectionTaskMapper.class),
+        return new LabNotificationCompensationServiceImpl(mock(LabStatusHistoryMapper.class), mock(LabInspectionTaskMapper.class),
                 mock(LabHazardMapper.class), mock(NotificationExpectationResolver.class),
-                delivery);
+                delivery, engine);
     }
 }

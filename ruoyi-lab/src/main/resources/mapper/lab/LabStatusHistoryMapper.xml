@@ -89,7 +89,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         select distinct e.history_id
         from expected e
         where e.receiver_id is not null and e.receiver_id&gt;0
-          and not exists (select 1 from lab_notification n where n.dedupe_key=concat('history:',e.history_id,':',e.notification_type,':',e.receiver_id))
+          and not exists (select 1 from lab_message_delivery n where n.dedupe_key=concat('history:',e.history_id,':',e.notification_type,':',e.receiver_id))
         order by e.history_id
         limit #{limit}
     </select>

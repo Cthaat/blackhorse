@@ -72,7 +72,9 @@ class LifecycleBatchSizeTest
 
         LabNotificationMapper notificationMapper = mock(LabNotificationMapper.class);
         when(notificationMapper.selectDueFailedIds(any(), anyInt())).thenReturn(List.of());
-        notifications = new NotificationDeliveryServiceImpl(notificationMapper, CLOCK);
+        notifications = new NotificationDeliveryServiceImpl(notificationMapper,
+                new MessageDeliveryEngine(mock(MessageDeliveryStore.class),
+                        mock(com.ruoyi.lab.mapper.LabMessageDeliveryMapper.class), mock(MessageChannel.class), CLOCK), CLOCK);
     }
 
     @Test

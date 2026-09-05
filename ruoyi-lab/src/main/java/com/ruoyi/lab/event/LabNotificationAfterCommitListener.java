@@ -39,7 +39,7 @@ public class LabNotificationAfterCommitListener
             catch (RuntimeException failure)
             {
                 LOG.error("Unable to project laboratory notification fact after commit; type={}; referenceId={}; version={}",
-                        event.type(), event.referenceId(), event.version(), failure);
+                        event.type(), event.referenceId(), event.version());
             }
         }
     }
