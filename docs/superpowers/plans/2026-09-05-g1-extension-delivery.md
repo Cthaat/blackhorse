@@ -50,3 +50,13 @@ G2 与 G3 在各批开始前按已批准设计补对应精确文件任务清单�
 Java 使用 `C:/APP/JDK/jdk_17`，Maven 使用 `C:/Apache/Maven/apache-maven-3.9.16/bin/mvn.cmd`：`mvn.cmd -q -pl ruoyi-admin -am -Dtest=LabRestrictionPolicyTest -Dsurefire.failIfNoSpecifiedTests=false test`，先得到缺失行为断言失败，再通过。实际新增测试名随实现记录，不将未执行用例标为通过。
 
 前端 `C:/nvm4w/nodejs/yarn.CMD test tests/unit/restrictions.spec.js`，再 `yarn.CMD build:prod`。原生集成沿用 `scripts/run-lab-tests.ps1` 的新隔离 `lab_test_` 数据库，绝不重置业务库。构建前停止项目拥有的 jar 实例，数据库迁移前备份。各批 `git diff --check` 后仅提交项目文件；保留 `.vscode/`，沿用当前分支推送。
+
+## 2026-09-05 实施证据（以此为当前状态）
+
+- Task 1、2 已实现，提交 `e1eb9f6`：新增 Java 定向 16 项、前端 8 项；隔离 MySQL `LabRestrictionIT` 3 项通过，包括双事务限制提交与准入串行、多限制叠加、一次申诉/审核、默认版本及历史不追罚。
+- 原生库已先备份 `target/local-runtime/restrictions-before-20260905-2134.sql`（1,752,477 字节），V9.0、V9.1 迁移成功，系统操作账号 9000 仍禁用登录。
+- 管理员真实页面完成限制登记及解除；联调记录 1 已解除，保留审计，不影响演示学生正常预约。学生浏览器申诉及实体附件流程尚未全量走查，服务层已验证。
+- Task 3 已实现，提交 `7af773b`：标签服务 3 项、二维码定向 21 项通过（含真实编码像素解码、外源拒绝、相机异步清理、旧查询失效）。真实页面验证编号查询、设备详情自动展开及标签预览；生产构建通过。实际手机相机和打印纸张未验证。
+- 修复审查发现的扫码查询竞态、浏览器发现的设备详情 ref 未就绪问题；规格与质量复审通过。
+- 限制全局准入锁用于保证跨设备限制一致性，未做性能优化或高吞吐承诺。
+- 依赖扫描发现既有 Vitest 严重及 Axios/Vite 等高等级公告，未进行无关的大规模依赖升级；新增 qrcode/ZXing 未出现在公告路径。公网部署前需单独处理依赖安全更新，不应将本机最小验证称为生产安全验收。

@@ -93,6 +93,7 @@ async function openMessage(message) {
 }
 function businessTarget(message) {
   if (!message?.businessId) return null
+  if (message.businessType === 'SLA' && /^[1-9]\d{0,18}$/.test(String(message.businessId)) && userStore.permissions.some(permission => permission === '*:*:*' || permission === 'lab:sla:list')) return { path: '/lab/sla', query: { recordId: String(message.businessId) } }
   const names = { RESERVATION: 'LabReservationDetail', REPAIR_ORDER: 'LabRepairDetail', INSPECTION_TASK: 'LabInspectionTaskExecute', HAZARD: 'LabHazardDetail', DEVICE: 'LabDeviceDetail' }
   const name = names[message.businessType]
   return name && router.hasRoute(name) ? { name, params: { id: message.businessId } } : null
@@ -102,7 +103,7 @@ function openBusiness(message) {
   if (target) router.push(target)
 }
 function typeText(value) {
-  const categories = { RESERVATION: '预约通知', REPAIR_ORDER: '维修通知', INSPECTION_TASK: '巡检通知', HAZARD: '隐患通知', DEVICE: '设备通知' }
+  const categories = { SLA: '业务时效提醒', RESERVATION: '预约通知', REPAIR_ORDER: '维修通知', INSPECTION_TASK: '巡检通知', HAZARD: '隐患通知', DEVICE: '设备通知' }
   return Object.entries(categories).find(([key]) => value?.startsWith(key))?.[1] || '业务通知'
 }
 loadMessages()

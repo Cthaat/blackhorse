@@ -51,7 +51,7 @@ public class LabNotificationCompensationServiceImpl
     public int reconcileStatusHistory(LocalDateTime now, int batchSize)
     {
         validate(now, batchSize);
-        int delivered = engine.backfillWaitlists(batchSize);
+        int delivered = engine.backfillWaitlists(batchSize)+engine.backfillSla(batchSize);
         for (Long historyId : historyMapper.selectNotificationCandidateIds(batchSize))
         {
             delivered += deliver(expectationResolver.resolveHistory(historyId));

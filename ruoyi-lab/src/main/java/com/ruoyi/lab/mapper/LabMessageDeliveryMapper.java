@@ -43,4 +43,7 @@ public interface LabMessageDeliveryMapper
     @Select("SELECT count(*) FROM lab_inspection_task WHERE id=#{id} AND overdue_event_version=#{version} AND del_flag='0'") int inspectionExists(@Param("id") Long id,@Param("version") Long version);
     @Select("SELECT count(*) FROM lab_hazard WHERE id=#{id} AND overdue_event_version=#{version} AND del_flag='0'") int hazardExists(@Param("id") Long id,@Param("version") Long version);
     @Select("SELECT count(*) FROM lab_reservation_waitlist WHERE id=#{id} AND offered_until IS NOT NULL") int waitlistExists(Long id);
+    @Select("SELECT count(*) FROM lab_sla_notice WHERE id=#{id}") int slaNoticeExists(Long id);
+    @Select("SELECT n.* FROM lab_sla_notice n WHERE NOT EXISTS(SELECT 1 FROM lab_message_delivery d WHERE d.dedupe_key=CAST(CONCAT('SLA:',n.id,':NOTICE') AS BINARY)) ORDER BY n.id LIMIT #{limit}")
+    List<com.ruoyi.lab.sla.SlaNotice> missingSlaNotices(int limit);
 }

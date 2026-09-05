@@ -82,6 +82,7 @@ public class MessageDeliveryStore
             case "INSPECTION_OVERDUE" -> mapper.inspectionExists(row.sourceId,row.eventVersion)>0;
             case "HAZARD_OVERDUE" -> mapper.hazardExists(row.sourceId,row.eventVersion)>0;
             case "WAITLIST_OFFERED" -> mapper.waitlistExists(row.sourceId)>0;
+            case "SLA_NOTICE" -> mapper.slaNoticeExists(row.sourceId)>0;
             default -> false;
         };
     }
@@ -108,6 +109,7 @@ public class MessageDeliveryStore
             if(key.length==4&&"history".equals(key[0])) {row.sourceType="STATUS_HISTORY";row.sourceId=Long.valueOf(key[1]);}
             else if(key.length==5&&"overdue".equals(key[0])) {row.sourceType="hazard".equals(key[1])?"HAZARD_OVERDUE":"INSPECTION_OVERDUE";row.sourceId=Long.valueOf(key[2]);row.eventVersion=Long.valueOf(key[3]);}
             else if(key.length==3&&"WAITLIST".equals(key[0])) {row.sourceType="WAITLIST_OFFERED";row.sourceId=Long.valueOf(key[1]);}
+            else if(key.length==3&&"SLA".equals(key[0])&&"NOTICE".equals(key[2])) {row.sourceType="SLA_NOTICE";row.sourceId=Long.valueOf(key[1]);}
             else {row.sourceType="LEGACY";row.sourceId=row.businessId;}
         } catch(NumberFormatException invalid) {throw MessageDeliveryPolicy.invalid("事实去重键无效");}
     }

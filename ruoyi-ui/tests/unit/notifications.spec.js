@@ -25,6 +25,13 @@ it('shows retry feedback instead of an empty inbox when loading fails', async ()
   expect(wrapper.find('el-empty-stub').exists()).toBe(false)
   wrapper.unmount()
 })
+it('links SLA notices to the authorized record while preserving large IDs', async () => {
+  mocks.permissions = ['lab:sla:list']
+  const wrapper = render()
+  await flushPromises()
+  expect(wrapper.vm.businessTarget({ businessType: 'SLA', businessId: '9007199254740993' })).toEqual({ path: '/lab/sla', query: { recordId: '9007199254740993' } })
+  wrapper.unmount()
+})
 it('does not mark messages read without the read permission or show unavailable business links', async () => {
   const message = { id: '1', title: '通知', content: '消息内容', businessType: 'DEVICE', businessId: '3' }
   mocks.list.mockResolvedValue({ rows: [message], total: 1 })

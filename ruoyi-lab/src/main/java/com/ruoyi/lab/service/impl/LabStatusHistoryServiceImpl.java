@@ -22,13 +22,15 @@ public class LabStatusHistoryServiceImpl implements LabStatusHistoryService
     private final LabStatusHistoryMapper historyMapper;
     private final LabNotificationEventPublisher notificationEventPublisher;
     private final Clock clock;
+    private final com.ruoyi.lab.sla.SlaLifecycle sla;
 
     public LabStatusHistoryServiceImpl(LabStatusHistoryMapper historyMapper,
-            LabNotificationEventPublisher notificationEventPublisher, Clock clock)
+            LabNotificationEventPublisher notificationEventPublisher, Clock clock,com.ruoyi.lab.sla.SlaLifecycle sla)
     {
         this.historyMapper = historyMapper;
         this.notificationEventPublisher = notificationEventPublisher;
         this.clock = clock;
+        this.sla = sla;
     }
 
     @Override
@@ -64,6 +66,7 @@ public class LabStatusHistoryServiceImpl implements LabStatusHistoryService
         {
             throw new LabBusinessException(LabErrorCode.INTERNAL_ERROR, "状态历史写入失败");
         }
+        sla.record(history);
         notificationEventPublisher.publishHistory(history.getId());
         return history.getId();
     }

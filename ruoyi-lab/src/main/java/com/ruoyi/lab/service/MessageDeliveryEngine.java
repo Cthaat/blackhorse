@@ -34,6 +34,12 @@ public class MessageDeliveryEngine
                 "您申请的时段已空出，请在"+row.getOfferedUntil()+"前打开我的预约中的开放日历与候补确认。确认后仍需审批。","WAITLIST",row.getId()));
         return missing.size();
     }
+    public int backfillSla(int limit)
+    {
+        var missing=mapper.missingSlaNotices(limit);
+        for(var notice:missing) registerAndDeliver(com.ruoyi.lab.sla.SlaAlertService.command(notice));
+        return missing.size();
+    }
     private void execute(Long id)
     {
         var row=store.claim(id,LocalDateTime.now(clock));
